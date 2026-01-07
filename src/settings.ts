@@ -261,13 +261,17 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Convert pasted Immich links')
-      .setDesc('Automatically convert pasted Immich photo URLs into embedded thumbnails')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.convertPastedLink)
         .onChange(async value => {
           this.plugin.settings.convertPastedLink = value
           await this.plugin.saveSettings()
         }))
+      .then(setting => {
+        setting.descEl.appendText('When pasting an Immich photo URL (e.g., ')
+        setting.descEl.createEl('code', { text: 'https://immich.example.com/photos/abc-123' })
+        setting.descEl.appendText('), automatically download the thumbnail and insert it as markdown instead of pasting the plain URL.')
+      })
   }
 
   updateFilenamePreview (el: HTMLElement, format: string): void {

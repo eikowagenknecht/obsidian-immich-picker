@@ -50,7 +50,14 @@ An Obsidian plugin to insert images from a self-hosted [Immich](https://immich.a
 
 ### Paste Immich URL
 
-Simply paste an Immich photo URL (e.g., `https://immich.example.com/photos/abc-123`) and it will automatically be converted to an embedded thumbnail with a link to the original.
+When you copy a photo URL from Immich (e.g., `https://immich.example.com/photos/abc-123`) and paste it into your note, the plugin will:
+
+1. Detect the Immich URL
+2. Download the thumbnail from your server
+3. Save it locally using your configured settings
+4. Insert the markdown with a clickable thumbnail linking to the original
+
+This can be disabled in settings if you prefer to paste plain URLs.
 
 ## Settings
 
@@ -61,7 +68,9 @@ Simply paste an Immich photo URL (e.g., `https://immich.example.com/photos/abc-1
 | Number of recent photos | Photos shown in picker | 10 |
 | Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
+| Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |
 | Markdown template | Output format for inserted images | `[![]({{local_thumbnail_link}})]({{immich_url}})` |
+| Convert pasted Immich links | Auto-convert pasted URLs to thumbnails | Enabled |
 
 ### Template Variables
 
