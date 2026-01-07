@@ -22,7 +22,7 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   recentPhotosCount: 10,
   thumbnailWidth: 400,
   thumbnailHeight: 280,
-  filename: 'YYYY-MM-DD[_immich_]HHmmss[.jpg]',
+  filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
   thumbnailMarkdown: '[![]({{local_thumbnail_link}})]({{immich_url}}) ',
   locationOption: 'note',
   locationFolder: '',
