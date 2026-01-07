@@ -51,7 +51,8 @@
 .immich-picker-search {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  padding: 4px;
+  margin: -4px -4px 8px -4px;
 }
 
 .immich-picker-search-input {
