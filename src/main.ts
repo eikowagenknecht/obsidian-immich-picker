@@ -90,7 +90,8 @@ export default class ImmichPicker extends Plugin {
             immich_asset_id: assetId,
             immich_url: this.immichApi.getAssetUrl(assetId),
             original_filename: '',
-            taken_date: creationTime.format()
+            taken_date: creationTime.format(),
+            description: ''
           })
 
           const cursorPosition = editor.getCursor()

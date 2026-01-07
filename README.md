@@ -83,6 +83,7 @@ This can be disabled in settings if you prefer to paste plain URLs.
 - `{{immich_asset_id}}` - The Immich asset ID
 - `{{original_filename}}` - Original filename from Immich
 - `{{taken_date}}` - Date the photo was taken
+- `{{description}}` - Photo description from Immich
 
 ## Development
 

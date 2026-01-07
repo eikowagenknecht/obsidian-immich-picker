@@ -3,7 +3,8 @@ export interface HandlebarTemplate {
   immich_url?: string;
   immich_asset_id?: string;
   original_filename?: string;
-  taken_date?: string
+  taken_date?: string;
+  description?: string;
 }
 
 export function handlebarParse (content: string, template: HandlebarTemplate) {

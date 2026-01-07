@@ -9,6 +9,7 @@ export class ThumbnailImage extends Image {
   filename: string
   originalFilename: string
   creationTime: Moment
+  description: string
 }
 
 export default class Renderer {
@@ -63,6 +64,7 @@ export class GridView extends Renderer {
         img.originalFilename = asset.originalFileName
         img.creationTime = moment(asset.fileCreatedAt)
         img.filename = img.creationTime.format(settings.filename)
+        img.description = asset.description || ''
         img.onclick = onclick
         img.classList.add('immich-picker-thumbnail')
 

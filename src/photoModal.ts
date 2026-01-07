@@ -257,13 +257,18 @@ export class ImmichPickerModal extends Modal {
       const savePath = thumbnailFolder ? thumbnailFolder + '/' + thumbnailImage.filename : thumbnailImage.filename
       await vault.adapter.writeBinary(savePath, imageData)
 
+      // Fetch asset details to get description
+      const assetDetails = await this.plugin.immichApi.getAssetDetails(thumbnailImage.assetId)
+      const description = assetDetails.exifInfo?.description || ''
+
       const cursorPosition = this.editor.getCursor()
       const linkText = handlebarParse(this.plugin.settings.thumbnailMarkdown, {
         local_thumbnail_link: linkPath,
         immich_asset_id: thumbnailImage.assetId,
         immich_url: thumbnailImage.immichUrl,
         original_filename: thumbnailImage.originalFilename,
-        taken_date: thumbnailImage.creationTime.format()
+        taken_date: thumbnailImage.creationTime.format(),
+        description
       })
 
       this.editor.replaceRange(linkText, cursorPosition)

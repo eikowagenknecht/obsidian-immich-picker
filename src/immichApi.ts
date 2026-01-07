@@ -6,6 +6,14 @@ export interface ImmichAsset {
   originalFileName: string;
   fileCreatedAt: string;
   type: string;
+  description?: string;
+}
+
+export interface ImmichAssetDetails {
+  id: string;
+  exifInfo?: {
+    description?: string;
+  };
 }
 
 export interface ImmichSearchResponse {
@@ -118,6 +126,20 @@ export class ImmichApi {
     }
 
     return response.arrayBuffer
+  }
+
+  async getAssetDetails (assetId: string): Promise<ImmichAssetDetails> {
+    const response = await requestUrl({
+      url: `${this.serverUrl}/api/assets/${assetId}`,
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    if (response.status !== 200) {
+      throw new Error(`Failed to get asset details: ${response.status}`)
+    }
+
+    return response.json as ImmichAssetDetails
   }
 
   extractAssetIdFromUrl (url: string): string | null {

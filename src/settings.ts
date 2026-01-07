@@ -257,6 +257,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         ul.createEl('li').setText('immich_asset_id - The Immich asset ID')
         ul.createEl('li').setText('original_filename - Original filename from Immich')
         ul.createEl('li').setText('taken_date - Date the photo was taken')
+        ul.createEl('li').setText('description - Photo description from Immich')
       })
 
     new Setting(containerEl)
