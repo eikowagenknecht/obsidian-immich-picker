@@ -1,0 +1,41 @@
+/* Immich Picker Modal */
+.immich-picker-modal {
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+}
+
+.immich-picker-modal .modal-content {
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+/* Photo Grid */
+.immich-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 8px 0;
+}
+
+/* Thumbnail */
+.immich-picker-thumbnail {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.immich-picker-thumbnail:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--interactive-accent);
+}
+
+.immich-picker-thumbnail:active {
+  transform: scale(0.98);
+}
