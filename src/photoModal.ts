@@ -16,7 +16,6 @@ export class ImmichPickerModal extends Modal {
   gridView: GridView
   editor: Editor
   view: MarkdownView
-  titleEl: HTMLElement
   gridContainerEl: HTMLElement
   searchInput: HTMLInputElement
   footerEl: HTMLElement
@@ -41,7 +40,7 @@ export class ImmichPickerModal extends Modal {
       modalEl.addClass('immich-picker-modal')
     }
 
-    this.titleEl = contentEl.createEl('h2', { text: 'Immich Photos', cls: 'immich-picker-title' })
+    this.setTitle('Immich Photos')
 
     // Search bar
     const searchContainer = contentEl.createDiv({ cls: 'immich-picker-search' })
@@ -97,13 +96,13 @@ export class ImmichPickerModal extends Modal {
     this.currentQuery = ''
     this.hasMoreResults = true
 
-    this.titleEl.setText('Immich Photos - Loading...')
+    this.setTitle('Immich Photos - Loading...')
     try {
       const assets = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount, 1)
       await this.displayPhotos(assets, 'recent', undefined, false)
     } catch (error) {
       console.error('Failed to load photos:', error)
-      this.titleEl.setText('Immich Photos - Error')
+      this.setTitle('Immich Photos - Error')
       new Notice('Failed to load photos from Immich: ' + (error as Error).message)
     }
   }
@@ -120,13 +119,13 @@ export class ImmichPickerModal extends Modal {
     this.currentQuery = query
     this.hasMoreResults = true
 
-    this.titleEl.setText('Immich Photos - Searching...')
+    this.setTitle('Immich Photos - Searching...')
     try {
       const assets = await this.plugin.immichApi.searchPhotos(query, this.plugin.settings.recentPhotosCount, 1)
       await this.displayPhotos(assets, 'search', query, false)
     } catch (error) {
       console.error('Failed to search photos:', error)
-      this.titleEl.setText('Immich Photos - Search error')
+      this.setTitle('Immich Photos - Search error')
       new Notice('Search failed: ' + (error as Error).message)
     }
   }
@@ -150,7 +149,7 @@ export class ImmichPickerModal extends Modal {
     }
 
     if (assets.length === 0 && !append) {
-      this.titleEl.setText(mode === 'search' ? `Immich Photos - No results for "${query}"` : 'Immich Photos - No photos found')
+      this.setTitle(mode === 'search' ? `Immich Photos - No results for "${query}"` : 'Immich Photos - No photos found')
       this.loadMoreEl.style.display = 'none'
       return
     }
@@ -162,7 +161,7 @@ export class ImmichPickerModal extends Modal {
     const title = mode === 'search'
       ? `Immich Photos - "${query}" (${totalCount})`
       : `Immich Photos - ${totalCount} recent`
-    this.titleEl.setText(title)
+    this.setTitle(title)
 
     await this.gridView.appendThumbnailsToElement(
       this.gridView.containerEl,
