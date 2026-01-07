@@ -19,7 +19,7 @@ export interface ImmichPickerSettings {
 export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   serverUrl: '',
   apiKey: '',
-  recentPhotosCount: 10,
+  recentPhotosCount: 9,
   thumbnailWidth: 400,
   thumbnailHeight: 280,
   filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
@@ -70,7 +70,6 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('API Key')
-      .setDesc('Your Immich API key. You can generate one in Immich under Account Settings > API Keys.')
       .addText(text => text
         .setPlaceholder('Enter your API key')
         .setValue(this.plugin.settings.apiKey)
@@ -78,6 +77,17 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           this.plugin.settings.apiKey = value.trim()
           await this.plugin.saveSettings()
         }))
+      .then(setting => {
+        setting.descEl.appendText('Generate in Immich under Account Settings > API Keys.')
+        setting.descEl.createEl('br')
+        setting.descEl.appendText('Required permissions: ')
+        setting.descEl.createEl('code', { text: 'asset.read' })
+        setting.descEl.appendText(', ')
+        setting.descEl.createEl('code', { text: 'asset.view' })
+        setting.descEl.createEl('br')
+        setting.descEl.appendText('Optional for albums: ')
+        setting.descEl.createEl('code', { text: 'album.read' })
+      })
 
     new Setting(containerEl)
       .setDesc('Test your connection to the Immich server.')

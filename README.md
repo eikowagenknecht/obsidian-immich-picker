@@ -10,6 +10,7 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 
 - **Photo Picker**: Command palette action to browse and select from your recent Immich photos
 - **Smart Search**: Search your photos using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
+- **Album Browsing**: Browse your Immich albums and insert single photos or entire albums
 - **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
 - **Local & Public URLs**: Works with both local network URLs (e.g., `http://nas:2283`) and public URLs (e.g., `https://immich.example.com`)
 
@@ -19,6 +20,7 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 - An Immich API key with the following permissions:
   - `asset.read` - for searching photos
   - `asset.view` - for downloading thumbnails
+  - `album.read` - for browsing albums (optional)
 
 ## Installation
 
@@ -69,7 +71,7 @@ This can be disabled in settings if you prefer to paste plain URLs.
 |---------|-------------|---------|
 | Server URL | Your Immich server URL | - |
 | API Key | Your Immich API key | - |
-| Photos per page | Photos loaded at a time (recent, search, pagination) | 10 |
+| Photos per page | Photos loaded at a time (recent, search, pagination) | 9 |
 | Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
 | Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |

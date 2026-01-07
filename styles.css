@@ -76,7 +76,8 @@
   color: var(--text-muted);
 }
 
-.immich-picker-search-button {
+.immich-picker-search-button,
+.immich-picker-albums-button {
   padding: 8px 16px;
   font-size: 14px;
   border: none;
@@ -84,9 +85,14 @@
   background: var(--interactive-accent);
   color: var(--text-on-accent);
   cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.immich-picker-search-button:hover {
+.immich-picker-search-button:hover,
+.immich-picker-albums-button:hover {
   background: var(--interactive-accent-hover);
 }
 
@@ -110,13 +116,14 @@
 
 .immich-picker-footer-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 16px;
 }
 
 .immich-picker-hint {
   color: var(--text-muted);
   font-size: var(--font-smaller);
+  flex: 1;
 }
 
 .immich-picker-hint a {
@@ -131,4 +138,80 @@
 
 .immich-picker-load-more:hover {
   text-decoration: underline;
+}
+
+.immich-picker-insert-all {
+  color: var(--interactive-accent);
+  cursor: pointer;
+  font-size: var(--font-smaller);
+}
+
+.immich-picker-insert-all:hover {
+  text-decoration: underline;
+}
+
+.immich-picker-back {
+  display: block;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-smaller);
+  margin-bottom: 8px;
+}
+
+.immich-picker-back:hover {
+  text-decoration: underline;
+  color: var(--text-normal);
+}
+
+/* Album grid item */
+.immich-picker-album {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.immich-picker-album:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.immich-picker-album-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.immich-picker-album-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--background-modifier-border);
+}
+
+.immich-picker-album-name {
+  padding: 8px 8px 2px;
+  font-weight: 500;
+  font-size: var(--font-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.immich-picker-album-count {
+  padding: 2px 8px 8px;
+  font-size: var(--font-smaller);
+  color: var(--text-muted);
+}
+
+/* Loading indicator */
+.immich-picker-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-medium);
 }

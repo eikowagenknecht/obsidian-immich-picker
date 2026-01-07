@@ -23,6 +23,14 @@ export interface ImmichSearchResponse {
   };
 }
 
+export interface ImmichAlbum {
+  id: string;
+  albumName: string;
+  assetCount: number;
+  albumThumbnailAssetId?: string;
+  updatedAt: string;
+}
+
 export class ImmichApi {
   plugin: ImmichPicker
 
@@ -140,6 +148,39 @@ export class ImmichApi {
     }
 
     return response.json as ImmichAssetDetails
+  }
+
+  async getAlbums (): Promise<ImmichAlbum[]> {
+    const response = await requestUrl({
+      url: `${this.serverUrl}/api/albums`,
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch albums: ${response.status}`)
+    }
+
+    return response.json as ImmichAlbum[]
+  }
+
+  async getAlbumAssets (albumId: string): Promise<ImmichAsset[]> {
+    const response = await requestUrl({
+      url: `${this.serverUrl}/api/albums/${albumId}`,
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    if (response.status !== 200) {
+      throw new Error(`Failed to fetch album assets: ${response.status}`)
+    }
+
+    const album = response.json as { assets: ImmichAsset[] }
+    return album.assets || []
+  }
+
+  getAlbumUrl (albumId: string): string {
+    return `${this.serverUrl}/albums/${albumId}`
   }
 
   extractAssetIdFromUrl (url: string): string | null {

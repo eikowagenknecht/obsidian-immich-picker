@@ -4,12 +4,13 @@ import {
   MarkdownView,
   Modal,
   Notice,
-  Platform
+  Platform,
+  requestUrl
 } from 'obsidian'
 import { GridView, ThumbnailImage } from './renderer'
 import ImmichPicker from './main'
 import { handlebarParse } from './handlebars'
-import { ImmichAsset } from './immichApi'
+import { ImmichAlbum, ImmichAsset } from './immichApi'
 
 export class ImmichPickerModal extends Modal {
   plugin: ImmichPicker
@@ -17,13 +18,21 @@ export class ImmichPickerModal extends Modal {
   editor: Editor
   view: MarkdownView
   gridContainerEl: HTMLElement
+  searchContainer: HTMLElement
   searchInput: HTMLInputElement
+  albumsButton: HTMLButtonElement
   footerEl: HTMLElement
+  footerRow1: HTMLElement
+  hintEl: HTMLElement
   loadMoreEl: HTMLElement
+  insertAllEl: HTMLElement
+  backButton: HTMLElement
 
   currentPage = 1
-  currentMode: 'recent' | 'search' = 'recent'
+  currentMode: 'recent' | 'search' | 'albums' | 'album' = 'recent'
   currentQuery = ''
+  currentAlbum: ImmichAlbum | null = null
+  currentAlbumAssets: ImmichAsset[] = []
   hasMoreResults = true
 
   constructor (app: App, plugin: ImmichPicker, editor: Editor, view: MarkdownView) {
@@ -42,16 +51,38 @@ export class ImmichPickerModal extends Modal {
 
     this.setTitle('Immich Photos')
 
+    // Back button (top of content)
+    this.backButton = contentEl.createEl('a', {
+      text: '← Back to albums',
+      cls: 'immich-picker-back',
+      href: '#'
+    })
+    this.backButton.style.display = 'none'
+    this.backButton.addEventListener('click', async e => {
+      e.preventDefault()
+      if (this.currentMode === 'album') {
+        await this.loadAlbums()
+      } else if (this.currentMode === 'albums') {
+        this.searchContainer.style.display = 'flex'
+        this.backButton.style.display = 'none'
+        await this.loadRecentPhotos()
+      }
+    })
+
     // Search bar
-    const searchContainer = contentEl.createDiv({ cls: 'immich-picker-search' })
-    this.searchInput = searchContainer.createEl('input', {
+    this.searchContainer = contentEl.createDiv({ cls: 'immich-picker-search' })
+    this.searchInput = this.searchContainer.createEl('input', {
       type: 'text',
       placeholder: 'Search...',
       cls: 'immich-picker-search-input'
     })
-    const searchButton = searchContainer.createEl('button', {
+    const searchButton = this.searchContainer.createEl('button', {
       text: 'Search',
       cls: 'immich-picker-search-button'
+    })
+    this.albumsButton = this.searchContainer.createEl('button', {
+      text: 'Albums',
+      cls: 'immich-picker-albums-button'
     })
 
     this.gridContainerEl = contentEl.createDiv({ cls: 'immich-picker-grid-container' })
@@ -59,16 +90,39 @@ export class ImmichPickerModal extends Modal {
     // Footer with help text and load more
     this.footerEl = contentEl.createDiv({ cls: 'immich-picker-footer' })
 
-    const footerRow1 = this.footerEl.createDiv({ cls: 'immich-picker-footer-row' })
-    footerRow1.createSpan({ text: 'Click an image to insert it', cls: 'immich-picker-hint' })
-    this.loadMoreEl = footerRow1.createEl('a', {
+    this.footerRow1 = this.footerEl.createDiv({ cls: 'immich-picker-footer-row' })
+    this.hintEl = this.footerRow1.createSpan({ text: 'Click an image to insert it', cls: 'immich-picker-hint' })
+
+    this.insertAllEl = this.footerRow1.createEl('a', {
+      text: 'Insert all',
+      cls: 'immich-picker-insert-all',
+      href: '#'
+    })
+    this.insertAllEl.style.display = 'none'
+    this.insertAllEl.addEventListener('click', async e => {
+      e.preventDefault()
+      await this.insertAllAlbumPhotos()
+    })
+
+    this.loadMoreEl = this.footerRow1.createEl('a', {
       text: `Load next ${this.plugin.settings.recentPhotosCount}`,
       cls: 'immich-picker-load-more',
       href: '#'
     })
     this.loadMoreEl.addEventListener('click', async e => {
       e.preventDefault()
-      await this.loadMore()
+      if (this.currentMode === 'album') {
+        // Album mode: show all remaining photos
+        this.loadMoreEl.style.display = 'none'
+        await this.gridView.appendThumbnailsToElement(
+          this.gridView.containerEl,
+          this.currentAlbumAssets.slice(this.plugin.settings.recentPhotosCount),
+          event => this.insertImageIntoEditor(event)
+        )
+      } else {
+        // Regular mode: load next page
+        await this.loadMore()
+      }
     })
     this.loadMoreEl.style.display = 'none'
 
@@ -97,11 +151,29 @@ export class ImmichPickerModal extends Modal {
       await this.triggerSearch()
     })
 
+    // Albums button click
+    this.albumsButton.addEventListener('click', async () => {
+      await this.loadAlbums()
+    })
+
+    // Check if albums are accessible and show/hide button
+    this.albumsButton.style.display = 'none'
+    this.checkAlbumsAccess()
+
     // Load recent photos initially
     await this.loadRecentPhotos()
 
     // Focus search input
     this.searchInput.focus()
+  }
+
+  async checkAlbumsAccess () {
+    try {
+      await this.plugin.immichApi.getAlbums()
+      this.albumsButton.style.display = 'block'
+    } catch {
+      // Albums not accessible, keep button hidden
+    }
   }
 
   async loadRecentPhotos () {
@@ -144,7 +216,7 @@ export class ImmichPickerModal extends Modal {
     }
   }
 
-  async displayPhotos (assets: ImmichAsset[], mode: 'recent' | 'search', query?: string, append = false) {
+  async displayPhotos (assets: ImmichAsset[], mode: 'recent' | 'search' | 'albums' | 'album', query?: string, append = false) {
     // Check if we got fewer results than requested (no more pages)
     if (assets.length < this.plugin.settings.recentPhotosCount) {
       this.hasMoreResults = false
@@ -214,6 +286,235 @@ export class ImmichPickerModal extends Modal {
       new Notice('Failed to load more photos: ' + (error as Error).message)
       this.loadMoreEl.textContent = `Load next ${this.plugin.settings.recentPhotosCount}`
     }
+  }
+
+  async loadAlbums () {
+    this.currentMode = 'albums'
+    this.currentAlbum = null
+    this.setTitle('Immich Albums - Loading...')
+    this.searchContainer.style.display = 'none'
+    this.loadMoreEl.style.display = 'none'
+    this.insertAllEl.style.display = 'none'
+    this.backButton.style.display = 'inline'
+    this.backButton.textContent = '← Back to photos'
+    this.hintEl.setText('Click an album to browse its photos')
+
+    try {
+      const albums = await this.plugin.immichApi.getAlbums()
+      await this.displayAlbums(albums)
+    } catch (error) {
+      console.error('Failed to load albums:', error)
+      this.setTitle('Immich Albums - Error')
+      new Notice('Failed to load albums: ' + (error as Error).message)
+    }
+  }
+
+  async displayAlbums (albums: ImmichAlbum[]) {
+    this.gridContainerEl.empty()
+    this.gridView?.destroy()
+
+    if (albums.length === 0) {
+      this.setTitle('Immich Albums - No albums found')
+      return
+    }
+
+    // Sort by most recently updated
+    albums.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+
+    this.setTitle(`Immich Albums - ${albums.length} albums`)
+
+    const grid = this.gridContainerEl.createDiv({ cls: 'immich-picker-grid' })
+
+    for (const album of albums) {
+      const albumEl = grid.createDiv({ cls: 'immich-picker-album' })
+
+      // Album thumbnail
+      if (album.albumThumbnailAssetId) {
+        const img = albumEl.createEl('img', { cls: 'immich-picker-album-thumb' })
+        img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="150" fill="#f0f0f0"/><text x="75" y="80" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">Loading...</text></svg>')
+        // Load thumbnail asynchronously
+        this.loadAlbumThumbnail(img, album.albumThumbnailAssetId)
+      } else {
+        albumEl.createDiv({ cls: 'immich-picker-album-placeholder' })
+      }
+
+      // Album name and count
+      albumEl.createDiv({ cls: 'immich-picker-album-name', text: album.albumName })
+      albumEl.createDiv({ cls: 'immich-picker-album-count', text: `${album.assetCount} photos` })
+
+      albumEl.addEventListener('click', async () => {
+        await this.loadAlbumPhotos(album)
+      })
+    }
+  }
+
+  async loadAlbumThumbnail (img: HTMLImageElement, assetId: string) {
+    try {
+      const thumbnailUrl = this.plugin.immichApi.getThumbnailUrl(assetId)
+      const response = await requestUrl({
+        url: thumbnailUrl,
+        headers: { 'x-api-key': this.plugin.settings.apiKey }
+      })
+      const blob = new Blob([response.arrayBuffer])
+      img.src = URL.createObjectURL(blob)
+    } catch {
+      img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="150" fill="#ddd"/></svg>')
+    }
+  }
+
+  async loadAlbumPhotos (album: ImmichAlbum) {
+    this.currentMode = 'album'
+    this.currentAlbum = album
+    this.setTitle(`${album.albumName} - Loading...`)
+    this.backButton.style.display = 'inline'
+    this.backButton.textContent = '← Back to albums'
+    this.loadMoreEl.style.display = 'none'
+    this.insertAllEl.style.display = 'none'
+    this.hintEl.setText('Click an image to insert it')
+
+    // Show loading indicator
+    this.gridContainerEl.empty()
+    this.gridContainerEl.createDiv({ cls: 'immich-picker-loading', text: 'Loading photos...' })
+
+    try {
+      const assets = await this.plugin.immichApi.getAlbumAssets(album.id)
+      this.currentAlbumAssets = assets
+
+      // Show first N photos
+      const displayAssets = assets.slice(0, this.plugin.settings.recentPhotosCount)
+      await this.displayAlbumPhotos(displayAssets, album, assets.length)
+    } catch (error) {
+      console.error('Failed to load album photos:', error)
+      this.setTitle(`${album.albumName} - Error`)
+      new Notice('Failed to load album photos: ' + (error as Error).message)
+    }
+  }
+
+  async displayAlbumPhotos (assets: ImmichAsset[], album: ImmichAlbum, totalCount: number) {
+    this.gridContainerEl.empty()
+    this.gridView?.destroy()
+
+    if (assets.length === 0) {
+      this.setTitle(`${album.albumName} - Empty album`)
+      this.insertAllEl.style.display = 'none'
+      return
+    }
+
+    this.setTitle(`${album.albumName} - ${totalCount} photos`)
+    this.insertAllEl.style.display = 'inline'
+    this.insertAllEl.textContent = `Insert all ${totalCount}`
+
+    this.gridView = new GridView({
+      scrollEl: this.modalEl,
+      plugin: this.plugin,
+      onThumbnailClick: event => this.insertImageIntoEditor(event)
+    })
+
+    await this.gridView.appendThumbnailsToElement(
+      this.gridView.containerEl,
+      assets,
+      event => this.insertImageIntoEditor(event)
+    )
+
+    this.gridContainerEl.appendChild(this.gridView.containerEl)
+
+    // Show load more if there are more photos
+    if (assets.length < totalCount) {
+      this.loadMoreEl.style.display = 'inline'
+      this.loadMoreEl.textContent = `Show all ${totalCount}`
+    }
+  }
+
+  async insertAllAlbumPhotos () {
+    if (!this.currentAlbum || this.currentAlbumAssets.length === 0) {
+      new Notice('No album selected or album is empty')
+      return
+    }
+
+    const noteFile = this.view.file
+    if (!noteFile) {
+      new Notice('No active note')
+      this.close()
+      return
+    }
+
+    const loadingNotice = new Notice(`Inserting ${this.currentAlbumAssets.length} photos...`, 0)
+
+    try {
+      const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
+      let thumbnailFolder = noteFolder
+
+      switch (this.plugin.settings.locationOption) {
+        case 'specified':
+          thumbnailFolder = this.plugin.settings.locationFolder
+          break
+        case 'subfolder':
+          thumbnailFolder = noteFolder + '/' + this.plugin.settings.locationSubfolder
+          break
+      }
+
+      thumbnailFolder = thumbnailFolder.replace(/^\/+/, '').replace(/\/+$/, '')
+
+      const vault = this.view.app.vault
+      if (thumbnailFolder && !await vault.adapter.exists(thumbnailFolder)) {
+        await vault.createFolder(thumbnailFolder)
+      }
+
+      let insertedText = ''
+
+      for (let i = 0; i < this.currentAlbumAssets.length; i++) {
+        const asset = this.currentAlbumAssets[i]
+        loadingNotice.setMessage(`Inserting photo ${i + 1}/${this.currentAlbumAssets.length}...`)
+
+        const creationTime = window.moment(asset.fileCreatedAt)
+        const filename = creationTime.format(this.plugin.settings.filename)
+        let linkPath = filename
+
+        switch (this.plugin.settings.locationOption) {
+          case 'specified':
+            linkPath = thumbnailFolder + '/' + filename
+            break
+          case 'subfolder':
+            linkPath = this.plugin.settings.locationSubfolder + '/' + filename
+            break
+        }
+
+        linkPath = encodeURI(linkPath)
+
+        // Download thumbnail
+        const imageData = await this.plugin.immichApi.downloadThumbnail(asset.id)
+        const savePath = thumbnailFolder ? thumbnailFolder + '/' + filename : filename
+        await vault.adapter.writeBinary(savePath, imageData)
+
+        // Get description
+        const assetDetails = await this.plugin.immichApi.getAssetDetails(asset.id)
+        const description = assetDetails.exifInfo?.description || ''
+
+        const linkText = handlebarParse(this.plugin.settings.thumbnailMarkdown, {
+          local_thumbnail_link: linkPath,
+          immich_asset_id: asset.id,
+          immich_url: this.plugin.immichApi.getAssetUrl(asset.id),
+          original_filename: asset.originalFileName,
+          taken_date: creationTime.format(),
+          description
+        })
+
+        insertedText += linkText
+      }
+
+      const cursorPosition = this.editor.getCursor()
+      this.editor.replaceRange(insertedText, cursorPosition)
+      this.editor.setCursor({ line: cursorPosition.line, ch: cursorPosition.ch + insertedText.length })
+
+      loadingNotice.hide()
+      new Notice(`Inserted ${this.currentAlbumAssets.length} photos from "${this.currentAlbum.albumName}"`)
+    } catch (e) {
+      loadingNotice.hide()
+      console.error('Failed to insert album photos:', e)
+      new Notice('Failed to insert album photos: ' + (e as Error).message)
+    }
+
+    this.close()
   }
 
   async insertImageIntoEditor (event: MouseEvent) {
