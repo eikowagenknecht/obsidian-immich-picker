@@ -4,7 +4,8 @@
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Insert images from a self-hosted Immich photo server",
-	"author": "Your Name",
-	"authorUrl": "https://github.com/yourusername",
+	"author": "eikowagenknecht",
+	"authorUrl": "https://github.com/eikowagenknecht",
+	"fundingUrl": "https://github.com/sponsors/eikowagenknecht",
 	"isDesktopOnly": false
 }

@@ -1,5 +1,5 @@
 {
-	"name": "immich-picker",
+	"name": "obsidian-immich-picker",
 	"version": "1.0.0",
 	"description": "Insert images from a self-hosted Immich photo server",
 	"main": "main.js",
@@ -7,11 +7,26 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"lint": "eslint . --ext .ts",
-		"lint:fix": "eslint . --ext .ts --fix"
+		"lint:fix": "eslint . --ext .ts --fix",
+		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
-	"keywords": [],
-	"author": "",
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"immich",
+		"photos",
+		"images"
+	],
+	"author": "eikowagenknecht",
 	"license": "GPL-3.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/eikowagenknecht/obsidian-immich-picker.git"
+	},
+	"homepage": "https://github.com/eikowagenknecht/obsidian-immich-picker#readme",
+	"bugs": {
+		"url": "https://github.com/eikowagenknecht/obsidian-immich-picker/issues"
+	},
 	"devDependencies": {
 		"@popperjs/core": "^2.11.6",
 		"@types/node": "^16.11.6",
