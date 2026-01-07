@@ -58,8 +58,10 @@ export class ImmichPickerModal extends Modal {
 
     // Footer with help text and load more
     this.footerEl = contentEl.createDiv({ cls: 'immich-picker-footer' })
-    this.footerEl.createSpan({ text: 'Click an image to insert it', cls: 'immich-picker-hint' })
-    this.loadMoreEl = this.footerEl.createEl('a', {
+
+    const footerRow1 = this.footerEl.createDiv({ cls: 'immich-picker-footer-row' })
+    footerRow1.createSpan({ text: 'Click an image to insert it', cls: 'immich-picker-hint' })
+    this.loadMoreEl = footerRow1.createEl('a', {
       text: `Load next ${this.plugin.settings.recentPhotosCount}`,
       cls: 'immich-picker-load-more',
       href: '#'
@@ -69,6 +71,18 @@ export class ImmichPickerModal extends Modal {
       await this.loadMore()
     })
     this.loadMoreEl.style.display = 'none'
+
+    // Show Immich link hint if paste conversion is enabled
+    if (this.plugin.settings.convertPastedLink) {
+      const footerRow2 = this.footerEl.createDiv({ cls: 'immich-picker-footer-row' })
+      const hintSpan = footerRow2.createSpan({ cls: 'immich-picker-hint' })
+      hintSpan.appendText('Or browse ')
+      hintSpan.createEl('a', {
+        text: 'your Immich',
+        href: this.plugin.settings.serverUrl
+      })
+      hintSpan.appendText(' and paste any photo URL directly into your note')
+    }
 
     // Search on Enter key
     this.searchInput.addEventListener('keydown', async e => {

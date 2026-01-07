@@ -101,16 +101,26 @@
 /* Footer */
 .immich-picker-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 0;
   margin-top: 8px;
   border-top: 1px solid var(--background-modifier-border);
 }
 
+.immich-picker-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .immich-picker-hint {
   color: var(--text-muted);
   font-size: var(--font-smaller);
+}
+
+.immich-picker-hint a {
+  color: var(--text-accent);
 }
 
 .immich-picker-load-more {
