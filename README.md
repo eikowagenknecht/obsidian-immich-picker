@@ -2,13 +2,16 @@
 
 An Obsidian plugin to insert images from a self-hosted [Immich](https://immich.app/) photo server. Pick photos from your recent uploads and embed them directly into your notes.
 
+Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-google-photos) for Immich. I created this because [his Templater script](https://github.com/almarber/immich-templater-script) wasn't flexible enough for my needs.
+
+![Photo selection modal](docs/screenshot.jpg)
+
 ## Features
 
 - **Photo Picker**: Command palette action to browse and select from your recent Immich photos
 - **Smart Search**: Search your photos using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
 - **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
-- **Configurable Storage**: Save thumbnails to the same folder as your note, a subfolder, or a specific location
-- **Customizable Output**: Configure the Markdown template for inserted images
+- **Local & Public URLs**: Works with both local network URLs (e.g., `http://nas:2283`) and public URLs (e.g., `https://immich.example.com`)
 
 ## Requirements
 
