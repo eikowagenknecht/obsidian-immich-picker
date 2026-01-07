@@ -393,6 +393,7 @@ export class ImmichPickerModal extends Modal {
     this.setTitle(`Immich Albums - ${albums.length} albums`)
 
     const grid = this.gridContainerEl.createDiv({ cls: 'immich-picker-grid' })
+    grid.style.gridTemplateColumns = `repeat(${this.plugin.settings.gridColumns}, 1fr)`
 
     for (const album of albums) {
       const albumEl = grid.createDiv({ cls: 'immich-picker-album' })

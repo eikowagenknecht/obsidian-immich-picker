@@ -8,6 +8,7 @@ export interface ImmichPickerSettings {
   serverUrl: string;
   apiKey: string;
   recentPhotosCount: number;
+  gridColumns: number;
   thumbnailWidth: number;
   thumbnailHeight: number;
   filename: string;
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   serverUrl: '',
   apiKey: '',
   recentPhotosCount: 9,
+  gridColumns: 3,
   thumbnailWidth: 400,
   thumbnailHeight: 280,
   filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
@@ -133,6 +135,20 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           const num = parseInt(value, 10)
           if (!isNaN(num) && num > 0) {
             this.plugin.settings.recentPhotosCount = num
+            await this.plugin.saveSettings()
+          }
+        }))
+
+    new Setting(containerEl)
+      .setName('Grid columns')
+      .setDesc('Number of columns in the photo grid')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_SETTINGS.gridColumns.toString())
+        .setValue(this.plugin.settings.gridColumns.toString())
+        .onChange(async value => {
+          const num = parseInt(value, 10)
+          if (!isNaN(num) && num > 0 && num <= 10) {
+            this.plugin.settings.gridColumns = num
             await this.plugin.saveSettings()
           }
         }))

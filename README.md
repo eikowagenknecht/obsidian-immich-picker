@@ -95,6 +95,7 @@ This can be disabled in settings if you prefer to paste plain URLs.
 | Server URL | Your Immich server URL | - |
 | API Key | Your Immich API key | - |
 | Photos per page | Photos loaded at a time (recent, search, pagination) | 9 |
+| Grid columns | Number of columns in the photo grid | 3 |
 | Get date from | Where to extract date for filtering (Disabled/Note title/Frontmatter) | Disabled |
 | Date format | MomentJS format for parsing dates | `YYYY-MM-DD` |
 | Frontmatter key | Property name containing the date | `date` |

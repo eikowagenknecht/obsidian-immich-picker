@@ -32,6 +32,7 @@ export class GridView extends Renderer {
     this.onThumbnailClick = options.onThumbnailClick
     this.containerEl = document.createElement('div')
     this.containerEl.classList.add('immich-picker-grid')
+    this.containerEl.style.gridTemplateColumns = `repeat(${this.plugin.settings.gridColumns}, 1fr)`
   }
 
   async resetGrid () {
