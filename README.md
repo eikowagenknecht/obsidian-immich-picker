@@ -28,6 +28,8 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 
 ## Installation
 
+> **Note:** This plugin is not yet in the official Obsidian community plugin list. A [PR has been submitted](https://github.com/obsidianmd/obsidian-releases/pull/9367) and is pending review.
+
 ### Using BRAT (Recommended)
 
 1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat) if you haven't already
