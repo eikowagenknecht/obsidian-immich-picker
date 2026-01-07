@@ -66,7 +66,7 @@ This can be disabled in settings if you prefer to paste plain URLs.
 |---------|-------------|---------|
 | Server URL | Your Immich server URL | - |
 | API Key | Your Immich API key | - |
-| Number of recent photos | Photos shown in picker | 10 |
+| Photos per page | Photos loaded at a time (recent, search, pagination) | 10 |
 | Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
 | Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |

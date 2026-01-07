@@ -106,8 +106,8 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .setHeading()
 
     new Setting(containerEl)
-      .setName('Number of recent photos')
-      .setDesc('How many recent photos to show in the picker')
+      .setName('Photos per page')
+      .setDesc('Number of photos to load at a time (recent, search results, and "Load next")')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.recentPhotosCount.toString())
         .setValue(this.plugin.settings.recentPhotosCount.toString())
