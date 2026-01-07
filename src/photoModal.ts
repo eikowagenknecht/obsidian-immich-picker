@@ -194,6 +194,7 @@ export class ImmichPickerModal extends Modal {
 
       await this.displayPhotos(assets, this.currentMode, this.currentQuery, true)
       this.loadMoreEl.textContent = `Load next ${this.plugin.settings.recentPhotosCount}`
+      this.gridContainerEl.scrollTo({ top: this.gridContainerEl.scrollHeight, behavior: 'smooth' })
     } catch (error) {
       console.error('Failed to load more photos:', error)
       new Notice('Failed to load more photos: ' + (error as Error).message)
