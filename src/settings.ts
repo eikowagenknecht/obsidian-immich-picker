@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian'
+import { App, moment, Notice, PluginSettingTab, Setting } from 'obsidian'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 import ImmichPicker from './main'
 
@@ -149,6 +149,8 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
 
+    let filenamePreviewEl: HTMLElement
+
     new Setting(containerEl)
       .setName('Image filename format')
       .addText(text => text
@@ -157,12 +159,20 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         .onChange(async value => {
           this.plugin.settings.filename = value.trim()
           await this.plugin.saveSettings()
+          this.updateFilenamePreview(filenamePreviewEl, value.trim())
         }))
       .then(setting => {
-        setting.descEl.appendText('Filename format for saving thumbnails (MomentJS format). ')
+        setting.descEl.appendText('Filename format for saving thumbnails (')
+        setting.descEl.createEl('a', {
+          text: 'MomentJS format',
+          href: 'https://momentjs.com/docs/#/displaying/format/'
+        })
+        setting.descEl.appendText(').')
         setting.descEl.createEl('br')
-        setting.descEl.appendText('Example: ')
-        setting.descEl.createEl('code', { text: 'YYYY-MM-DD[_immich_]HHmmss[.jpg]' })
+        setting.descEl.createEl('br')
+        setting.descEl.appendText('Preview: ')
+        filenamePreviewEl = setting.descEl.createEl('code', { cls: 'immich-filename-preview' })
+        this.updateFilenamePreview(filenamePreviewEl, this.plugin.settings.filename)
       })
 
     /*
@@ -257,5 +267,16 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           this.plugin.settings.convertPastedLink = value
           await this.plugin.saveSettings()
         }))
+  }
+
+  updateFilenamePreview (el: HTMLElement, format: string): void {
+    try {
+      const preview = moment().format(format)
+      el.setText(preview)
+      el.style.color = ''
+    } catch {
+      el.setText('Invalid format')
+      el.style.color = 'var(--text-error)'
+    }
   }
 }
