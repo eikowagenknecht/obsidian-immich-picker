@@ -60,7 +60,7 @@ export class ImmichPickerModal extends Modal {
     this.footerEl = contentEl.createDiv({ cls: 'immich-picker-footer' })
     this.footerEl.createSpan({ text: 'Click an image to insert it', cls: 'immich-picker-hint' })
     this.loadMoreEl = this.footerEl.createEl('a', {
-      text: 'Load more...',
+      text: `Load next ${this.plugin.settings.recentPhotosCount}`,
       cls: 'immich-picker-load-more',
       href: '#'
     })
@@ -193,11 +193,11 @@ export class ImmichPickerModal extends Modal {
       }
 
       await this.displayPhotos(assets, this.currentMode, this.currentQuery, true)
-      this.loadMoreEl.textContent = 'Load more...'
+      this.loadMoreEl.textContent = `Load next ${this.plugin.settings.recentPhotosCount}`
     } catch (error) {
       console.error('Failed to load more photos:', error)
       new Notice('Failed to load more photos: ' + (error as Error).message)
-      this.loadMoreEl.textContent = 'Load more...'
+      this.loadMoreEl.textContent = `Load next ${this.plugin.settings.recentPhotosCount}`
     }
   }
 
