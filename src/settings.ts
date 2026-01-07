@@ -271,6 +271,11 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
   }
 
   updateFilenamePreview (el: HTMLElement, format: string): void {
+    if (!format.trim()) {
+      el.setText('Enter a format')
+      el.style.color = 'var(--text-muted)'
+      return
+    }
     try {
       const preview = moment().format(format)
       el.setText(preview)
