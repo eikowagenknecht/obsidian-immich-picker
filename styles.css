@@ -96,6 +96,24 @@
   background: var(--interactive-accent-hover);
 }
 
+/* Date banner */
+.immich-picker-date-banner {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.immich-picker-date-banner:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
 /* Settings */
 .immich-picker-settings textarea {
   width: 300px;

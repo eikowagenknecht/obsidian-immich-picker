@@ -1,4 +1,4 @@
-import { Editor, MarkdownView, moment, Notice, Plugin } from 'obsidian'
+import { Editor, MarkdownView, moment, Notice, Plugin, TFile } from 'obsidian'
 import { ImmichApi } from './immichApi'
 import { ImmichPickerSettingTab, ImmichPickerSettings, DEFAULT_SETTINGS } from './settings'
 import { ImmichPickerModal } from './photoModal'
@@ -108,6 +108,31 @@ export default class ImmichPicker extends Plugin {
         }
       })
     )
+  }
+
+  /**
+   * Gets the date from the note title or frontmatter based on user settings
+   */
+  getNoteDate (file: TFile): moment.Moment | null {
+    if (this.settings.getDateFrom === 'none') {
+      return null
+    }
+
+    if (this.settings.getDateFrom === 'title') {
+      const date = moment(file.basename, this.settings.getDateFromFormat, true)
+      return date.isValid() ? date : null
+    }
+
+    if (this.settings.getDateFrom === 'frontmatter') {
+      const meta = this.app.metadataCache.getFileCache(file)
+      const frontMatter = meta?.frontmatter
+      if (frontMatter && frontMatter[this.settings.getDateFromFrontMatterKey]) {
+        const date = moment(frontMatter[this.settings.getDateFromFrontMatterKey], this.settings.getDateFromFormat, true)
+        return date.isValid() ? date : null
+      }
+    }
+
+    return null
   }
 
   async loadSettings () {

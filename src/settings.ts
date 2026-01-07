@@ -2,6 +2,8 @@ import { App, moment, Notice, PluginSettingTab, Setting } from 'obsidian'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 import ImmichPicker from './main'
 
+export type GetDateFromOption = 'none' | 'title' | 'frontmatter';
+
 export interface ImmichPickerSettings {
   serverUrl: string;
   apiKey: string;
@@ -14,6 +16,9 @@ export interface ImmichPickerSettings {
   locationFolder: string;
   locationSubfolder: string;
   convertPastedLink: boolean;
+  getDateFrom: GetDateFromOption;
+  getDateFromFrontMatterKey: string;
+  getDateFromFormat: string;
 }
 
 export const DEFAULT_SETTINGS: ImmichPickerSettings = {
@@ -27,7 +32,10 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   locationOption: 'note',
   locationFolder: '',
   locationSubfolder: 'photos',
-  convertPastedLink: true
+  convertPastedLink: true,
+  getDateFrom: 'none',
+  getDateFromFrontMatterKey: 'date',
+  getDateFromFormat: 'YYYY-MM-DD'
 }
 
 export class ImmichPickerSettingTab extends PluginSettingTab {
@@ -128,6 +136,65 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings()
           }
         }))
+
+    /*
+     Date detection settings
+     */
+
+    new Setting(containerEl)
+      .setName('Note Date Detection')
+      .setHeading()
+      .setDesc('Detect a date from the current note to filter photos.')
+
+    const dateFromFrontMatterKeyEl = new Setting(this.containerEl)
+      .setName('Frontmatter key')
+      .setDesc('The frontmatter property containing the date')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_SETTINGS.getDateFromFrontMatterKey)
+        .setValue(this.plugin.settings.getDateFromFrontMatterKey)
+        .onChange(async value => {
+          this.plugin.settings.getDateFromFrontMatterKey = value.trim()
+          await this.plugin.saveSettings()
+        }))
+
+    const dateFromFormatEl = new Setting(this.containerEl)
+      .setName('Date format')
+      .addText(text => text
+        .setPlaceholder(DEFAULT_SETTINGS.getDateFromFormat)
+        .setValue(this.plugin.settings.getDateFromFormat)
+        .onChange(async value => {
+          this.plugin.settings.getDateFromFormat = value.trim()
+          await this.plugin.saveSettings()
+        }))
+      .then(setting => {
+        setting.descEl.appendText('Expected date format in title/frontmatter (')
+        setting.descEl.createEl('a', {
+          text: 'MomentJS format',
+          href: 'https://momentjs.com/docs/#/displaying/format/'
+        })
+        setting.descEl.appendText(').')
+      })
+
+    new Setting(containerEl)
+      .setName('Get date from')
+      .setDesc('Where to extract the date for filtering photos')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption('none', 'Disabled')
+          .addOption('title', 'Note title')
+          .addOption('frontmatter', 'Frontmatter property')
+          .setValue(this.plugin.settings.getDateFrom)
+          .onChange(async value => {
+            this.plugin.settings.getDateFrom = value as 'none' | 'title' | 'frontmatter'
+            setVisible(dateFromFrontMatterKeyEl, value === 'frontmatter')
+            setVisible(dateFromFormatEl, value !== 'none')
+            await this.plugin.saveSettings()
+          })
+      })
+      .then(() => {
+        setVisible(dateFromFrontMatterKeyEl, this.plugin.settings.getDateFrom === 'frontmatter')
+        setVisible(dateFromFormatEl, this.plugin.settings.getDateFrom !== 'none')
+      })
 
     /*
      Thumbnail settings

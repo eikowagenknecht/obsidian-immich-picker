@@ -4,13 +4,16 @@ An Obsidian plugin to insert images from a self-hosted [Immich](https://immich.a
 
 Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-google-photos) for Immich. I created this as an alternative to [his Templater script](https://github.com/almarber/immich-templater-script).
 
-![Photo selection modal](docs/screenshot.jpg)
+![Photo selection modal](docs/screenshot-photos.webp)
+
+![Album browsing](docs/screenshot-albums.webp)
 
 ## Features
 
 - **Photo Picker**: Command palette action to browse and select from your recent Immich photos
 - **Smart Search**: Search your photos using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
 - **Album Browsing**: Browse your Immich albums, view album contents, and insert single photos or entire albums at once
+- **Date Filtering**: Detect dates from note titles or frontmatter and show photos from that day
 - **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
 - **Local & Public URLs**: Works with both local network URLs (e.g., `http://nas:2283`) and public URLs (e.g., `https://immich.example.com`)
 - **Secure**: API key is stored in plugin settings only, never embedded in your notes
@@ -63,6 +66,17 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 4. Click an album to view its photos
 5. Click a photo to insert it, or use "Insert all" to insert the entire album
 
+### Filter by Note Date
+
+If your note has a date in its title (e.g., `2024-01-15.md`) or frontmatter, the picker will suggest photos from that date:
+
+1. Configure date detection in Settings → Note Date Detection
+2. Open the photo picker on a note with a detectable date
+3. A banner appears: "📅 Show photos from January 15, 2024?"
+4. Click the banner to see all photos taken on that day
+
+This is especially useful for daily notes or journal entries.
+
 ### Paste Immich URL
 
 When you copy a photo URL from Immich (e.g., `https://immich.example.com/photos/abc-123`) and paste it into your note, the plugin will:
@@ -81,6 +95,9 @@ This can be disabled in settings if you prefer to paste plain URLs.
 | Server URL | Your Immich server URL | - |
 | API Key | Your Immich API key | - |
 | Photos per page | Photos loaded at a time (recent, search, pagination) | 9 |
+| Get date from | Where to extract date for filtering (Disabled/Note title/Frontmatter) | Disabled |
+| Date format | MomentJS format for parsing dates | `YYYY-MM-DD` |
+| Frontmatter key | Property name containing the date | `date` |
 | Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
 | Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |

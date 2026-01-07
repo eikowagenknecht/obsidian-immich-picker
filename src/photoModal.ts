@@ -3,6 +3,7 @@ import {
   Editor,
   MarkdownView,
   Modal,
+  moment,
   Notice,
   Platform,
   requestUrl
@@ -21,6 +22,7 @@ export class ImmichPickerModal extends Modal {
   searchContainer: HTMLElement
   searchInput: HTMLInputElement
   albumsButton: HTMLButtonElement
+  dateBanner: HTMLElement
   footerEl: HTMLElement
   footerRow1: HTMLElement
   hintEl: HTMLElement
@@ -29,11 +31,12 @@ export class ImmichPickerModal extends Modal {
   backButton: HTMLElement
 
   currentPage = 1
-  currentMode: 'recent' | 'search' | 'albums' | 'album' = 'recent'
+  currentMode: 'recent' | 'search' | 'albums' | 'album' | 'date' = 'recent'
   currentQuery = ''
   currentAlbum: ImmichAlbum | null = null
   currentAlbumAssets: ImmichAsset[] = []
   hasMoreResults = true
+  noteDate: moment.Moment | null = null
 
   constructor (app: App, plugin: ImmichPicker, editor: Editor, view: MarkdownView) {
     super(app)
@@ -62,9 +65,14 @@ export class ImmichPickerModal extends Modal {
       e.preventDefault()
       if (this.currentMode === 'album') {
         await this.loadAlbums()
-      } else if (this.currentMode === 'albums') {
+      } else if (this.currentMode === 'albums' || this.currentMode === 'date') {
         this.searchContainer.style.display = 'flex'
         this.backButton.style.display = 'none'
+        this.hintEl.setText('Click an image to insert it')
+        // Show date banner again if we have a note date
+        if (this.noteDate) {
+          this.dateBanner.style.display = 'block'
+        }
         await this.loadRecentPhotos()
       }
     })
@@ -84,6 +92,10 @@ export class ImmichPickerModal extends Modal {
       text: 'Albums',
       cls: 'immich-picker-albums-button'
     })
+
+    // Date banner (will be shown if note date is detected)
+    this.dateBanner = contentEl.createDiv({ cls: 'immich-picker-date-banner' })
+    this.dateBanner.style.display = 'none'
 
     this.gridContainerEl = contentEl.createDiv({ cls: 'immich-picker-grid-container' })
 
@@ -160,6 +172,20 @@ export class ImmichPickerModal extends Modal {
     this.albumsButton.style.display = 'none'
     this.checkAlbumsAccess()
 
+    // Check for note date and show date banner if found
+    const noteFile = this.view.file
+    if (noteFile) {
+      this.noteDate = this.plugin.getNoteDate(noteFile)
+      if (this.noteDate) {
+        const formattedDate = this.noteDate.format('MMMM D, YYYY')
+        this.dateBanner.setText(`📅 Show photos from ${formattedDate}?`)
+        this.dateBanner.style.display = 'block'
+        this.dateBanner.addEventListener('click', async () => {
+          await this.loadPhotosByDate()
+        })
+      }
+    }
+
     // Load recent photos initially
     await this.loadRecentPhotos()
 
@@ -216,7 +242,7 @@ export class ImmichPickerModal extends Modal {
     }
   }
 
-  async displayPhotos (assets: ImmichAsset[], mode: 'recent' | 'search' | 'albums' | 'album', query?: string, append = false) {
+  async displayPhotos (assets: ImmichAsset[], mode: 'recent' | 'search' | 'albums' | 'album' | 'date', query?: string, append = false) {
     // Check if we got fewer results than requested (no more pages)
     if (assets.length < this.plugin.settings.recentPhotosCount) {
       this.hasMoreResults = false
@@ -244,9 +270,14 @@ export class ImmichPickerModal extends Modal {
     const existingCount = this.gridView.containerEl.querySelectorAll('.immich-picker-thumbnail').length
     const totalCount = existingCount + assets.length
 
-    const title = mode === 'search'
-      ? `Immich Photos - "${query}" (${totalCount})`
-      : `Immich Photos - ${totalCount} recent`
+    let title: string
+    if (mode === 'search') {
+      title = `Immich Photos - "${query}" (${totalCount})`
+    } else if (mode === 'date') {
+      title = `Immich Photos - ${query} (${totalCount})`
+    } else {
+      title = `Immich Photos - ${totalCount} recent`
+    }
     this.setTitle(title)
 
     await this.gridView.appendThumbnailsToElement(
@@ -271,6 +302,12 @@ export class ImmichPickerModal extends Modal {
           this.plugin.settings.recentPhotosCount,
           this.currentPage
         )
+      } else if (this.currentMode === 'date' && this.noteDate) {
+        assets = await this.plugin.immichApi.getPhotosByDate(
+          this.noteDate,
+          this.plugin.settings.recentPhotosCount,
+          this.currentPage
+        )
       } else {
         assets = await this.plugin.immichApi.getRecentPhotos(
           this.plugin.settings.recentPhotosCount,
@@ -288,11 +325,43 @@ export class ImmichPickerModal extends Modal {
     }
   }
 
+  async loadPhotosByDate () {
+    if (!this.noteDate) return
+
+    this.currentPage = 1
+    this.currentMode = 'date'
+    this.currentQuery = ''
+    this.hasMoreResults = true
+
+    // Hide search bar and date banner, show back button
+    this.searchContainer.style.display = 'none'
+    this.dateBanner.style.display = 'none'
+    this.backButton.style.display = 'inline'
+    this.backButton.textContent = '← Back to recent'
+
+    const dateStr = this.noteDate.format('YYYY-MM-DD')
+    this.setTitle(`Immich Photos - Loading ${dateStr}...`)
+
+    try {
+      const assets = await this.plugin.immichApi.getPhotosByDate(
+        this.noteDate,
+        this.plugin.settings.recentPhotosCount,
+        1
+      )
+      await this.displayPhotos(assets, 'date', dateStr, false)
+    } catch (error) {
+      console.error('Failed to load photos by date:', error)
+      this.setTitle(`Immich Photos - Error loading ${dateStr}`)
+      new Notice('Failed to load photos: ' + (error as Error).message)
+    }
+  }
+
   async loadAlbums () {
     this.currentMode = 'albums'
     this.currentAlbum = null
     this.setTitle('Immich Albums - Loading...')
     this.searchContainer.style.display = 'none'
+    this.dateBanner.style.display = 'none'
     this.loadMoreEl.style.display = 'none'
     this.insertAllEl.style.display = 'none'
     this.backButton.style.display = 'inline'
