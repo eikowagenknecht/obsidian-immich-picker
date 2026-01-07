@@ -42,6 +42,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     const { containerEl } = this
 
     containerEl.empty()
+    containerEl.addClass('immich-picker-settings')
 
     const setVisible = (setting: Setting, visible: boolean) => {
       setting.settingEl.style.display = visible ? 'flex' : 'none'

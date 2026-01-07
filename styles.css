@@ -39,3 +39,11 @@
 .immich-picker-thumbnail:active {
   transform: scale(0.98);
 }
+
+/* Settings */
+.immich-picker-settings textarea {
+  width: 300px;
+  min-height: 80px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+}
