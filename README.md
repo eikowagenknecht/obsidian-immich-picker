@@ -2,7 +2,7 @@
 
 An Obsidian plugin to insert images from a self-hosted [Immich](https://immich.app/) photo server. Pick photos from your recent uploads and embed them directly into your notes.
 
-Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-google-photos) for Immich. I created this because [his Templater script](https://github.com/almarber/immich-templater-script) wasn't flexible enough for my needs.
+Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-google-photos) for Immich. I created this as an alternative to [his Templater script](https://github.com/almarber/immich-templater-script).
 
 ![Photo selection modal](docs/screenshot.jpg)
 
@@ -10,9 +10,10 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 
 - **Photo Picker**: Command palette action to browse and select from your recent Immich photos
 - **Smart Search**: Search your photos using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
-- **Album Browsing**: Browse your Immich albums and insert single photos or entire albums
+- **Album Browsing**: Browse your Immich albums, view album contents, and insert single photos or entire albums at once
 - **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
 - **Local & Public URLs**: Works with both local network URLs (e.g., `http://nas:2283`) and public URLs (e.g., `https://immich.example.com`)
+- **Secure**: API key is stored in plugin settings only, never embedded in your notes
 
 ## Requirements
 
@@ -53,6 +54,14 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 1. Open the command palette (<kbd>Ctrl/Cmd</kbd> + <kbd>P</kbd>)
 2. Search for "Insert image from Immich"
 3. Click on a photo to insert it
+
+### Browse Albums
+
+1. Open the photo picker via command palette
+2. Click the "Albums" button (requires `album.read` permission)
+3. Browse your albums sorted by most recently updated
+4. Click an album to view its photos
+5. Click a photo to insert it, or use "Insert all" to insert the entire album
 
 ### Paste Immich URL
 
