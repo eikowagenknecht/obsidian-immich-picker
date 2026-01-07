@@ -55,13 +55,13 @@ export class ImmichApi {
     }
   }
 
-  async getRecentPhotos (count: number): Promise<ImmichAsset[]> {
+  async getRecentPhotos (count: number, page = 1): Promise<ImmichAsset[]> {
     const response = await requestUrl({
       url: `${this.serverUrl}/api/search/metadata`,
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({
-        page: 1,
+        page,
         size: count,
         type: 'IMAGE',
         order: 'desc'
@@ -70,6 +70,26 @@ export class ImmichApi {
 
     if (response.status !== 200) {
       throw new Error(`Failed to fetch photos: ${response.status}`)
+    }
+
+    const data = response.json as ImmichSearchResponse
+    return data.assets?.items || []
+  }
+
+  async searchPhotos (query: string, count: number, page = 1): Promise<ImmichAsset[]> {
+    const response = await requestUrl({
+      url: `${this.serverUrl}/api/search/smart`,
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        query,
+        page,
+        size: count
+      })
+    })
+
+    if (response.status !== 200) {
+      throw new Error(`Failed to search photos: ${response.status}`)
     }
 
     const data = response.json as ImmichSearchResponse

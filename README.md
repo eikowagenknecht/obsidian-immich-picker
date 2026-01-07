@@ -5,6 +5,7 @@ An Obsidian plugin to insert images from a self-hosted [Immich](https://immich.a
 ## Features
 
 - **Photo Picker**: Command palette action to browse and select from your recent Immich photos
+- **Smart Search**: Search your photos using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
 - **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
 - **Configurable Storage**: Save thumbnails to the same folder as your note, a subfolder, or a specific location
 - **Customizable Output**: Configure the Markdown template for inserted images

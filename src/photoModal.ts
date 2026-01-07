@@ -9,12 +9,23 @@ import {
 import { GridView, ThumbnailImage } from './renderer'
 import ImmichPicker from './main'
 import { handlebarParse } from './handlebars'
+import { ImmichAsset } from './immichApi'
 
 export class ImmichPickerModal extends Modal {
   plugin: ImmichPicker
   gridView: GridView
   editor: Editor
   view: MarkdownView
+  titleEl: HTMLElement
+  gridContainerEl: HTMLElement
+  searchInput: HTMLInputElement
+  footerEl: HTMLElement
+  loadMoreEl: HTMLElement
+
+  currentPage = 1
+  currentMode: 'recent' | 'search' = 'recent'
+  currentQuery = ''
+  hasMoreResults = true
 
   constructor (app: App, plugin: ImmichPicker, editor: Editor, view: MarkdownView) {
     super(app)
@@ -30,36 +41,164 @@ export class ImmichPickerModal extends Modal {
       modalEl.addClass('immich-picker-modal')
     }
 
-    contentEl.createEl('h2', { text: 'Immich Photos' })
-    const statusEl = contentEl.createEl('p', { text: 'Loading recent photos...' })
+    this.titleEl = contentEl.createEl('h2', { text: 'Immich Photos', cls: 'immich-picker-title' })
 
-    try {
-      const assets = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount)
+    // Search bar
+    const searchContainer = contentEl.createDiv({ cls: 'immich-picker-search' })
+    this.searchInput = searchContainer.createEl('input', {
+      type: 'text',
+      placeholder: 'Search...',
+      cls: 'immich-picker-search-input'
+    })
+    const searchButton = searchContainer.createEl('button', {
+      text: 'Search',
+      cls: 'immich-picker-search-button'
+    })
 
-      if (assets.length === 0) {
-        statusEl.setText('No photos found.')
-        return
+    this.gridContainerEl = contentEl.createDiv({ cls: 'immich-picker-grid-container' })
+
+    // Footer with help text and load more
+    this.footerEl = contentEl.createDiv({ cls: 'immich-picker-footer' })
+    this.footerEl.createSpan({ text: 'Click an image to insert it', cls: 'immich-picker-hint' })
+    this.loadMoreEl = this.footerEl.createEl('a', {
+      text: 'Load more...',
+      cls: 'immich-picker-load-more',
+      href: '#'
+    })
+    this.loadMoreEl.addEventListener('click', async e => {
+      e.preventDefault()
+      await this.loadMore()
+    })
+    this.loadMoreEl.style.display = 'none'
+
+    // Search on Enter key
+    this.searchInput.addEventListener('keydown', async e => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        await this.triggerSearch()
       }
+    })
 
-      statusEl.setText(`Showing ${assets.length} recent photo(s). Click to insert:`)
+    // Search on button click (for mobile)
+    searchButton.addEventListener('click', async () => {
+      await this.triggerSearch()
+    })
 
+    // Load recent photos initially
+    await this.loadRecentPhotos()
+
+    // Focus search input
+    this.searchInput.focus()
+  }
+
+  async loadRecentPhotos () {
+    this.currentPage = 1
+    this.currentMode = 'recent'
+    this.currentQuery = ''
+    this.hasMoreResults = true
+
+    this.titleEl.setText('Immich Photos - Loading...')
+    try {
+      const assets = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount, 1)
+      await this.displayPhotos(assets, 'recent', undefined, false)
+    } catch (error) {
+      console.error('Failed to load photos:', error)
+      this.titleEl.setText('Immich Photos - Error')
+      new Notice('Failed to load photos from Immich: ' + (error as Error).message)
+    }
+  }
+
+  async triggerSearch () {
+    const query = this.searchInput.value.trim()
+    if (!query) {
+      await this.loadRecentPhotos()
+      return
+    }
+
+    this.currentPage = 1
+    this.currentMode = 'search'
+    this.currentQuery = query
+    this.hasMoreResults = true
+
+    this.titleEl.setText('Immich Photos - Searching...')
+    try {
+      const assets = await this.plugin.immichApi.searchPhotos(query, this.plugin.settings.recentPhotosCount, 1)
+      await this.displayPhotos(assets, 'search', query, false)
+    } catch (error) {
+      console.error('Failed to search photos:', error)
+      this.titleEl.setText('Immich Photos - Search error')
+      new Notice('Search failed: ' + (error as Error).message)
+    }
+  }
+
+  async displayPhotos (assets: ImmichAsset[], mode: 'recent' | 'search', query?: string, append = false) {
+    // Check if we got fewer results than requested (no more pages)
+    if (assets.length < this.plugin.settings.recentPhotosCount) {
+      this.hasMoreResults = false
+    }
+
+    if (!append) {
+      // Clear existing grid for new search/load
+      this.gridContainerEl.empty()
+      this.gridView?.destroy()
       this.gridView = new GridView({
         scrollEl: this.modalEl,
         plugin: this.plugin,
         onThumbnailClick: event => this.insertImageIntoEditor(event)
       })
+      this.gridContainerEl.appendChild(this.gridView.containerEl)
+    }
 
-      await this.gridView.appendThumbnailsToElement(
-        this.gridView.containerEl,
-        assets,
-        event => this.insertImageIntoEditor(event)
-      )
+    if (assets.length === 0 && !append) {
+      this.titleEl.setText(mode === 'search' ? `Immich Photos - No results for "${query}"` : 'Immich Photos - No photos found')
+      this.loadMoreEl.style.display = 'none'
+      return
+    }
 
-      contentEl.appendChild(this.gridView.containerEl)
+    // Count total photos displayed
+    const existingCount = this.gridView.containerEl.querySelectorAll('.immich-picker-thumbnail').length
+    const totalCount = existingCount + assets.length
+
+    const title = mode === 'search'
+      ? `Immich Photos - "${query}" (${totalCount})`
+      : `Immich Photos - ${totalCount} recent`
+    this.titleEl.setText(title)
+
+    await this.gridView.appendThumbnailsToElement(
+      this.gridView.containerEl,
+      assets,
+      event => this.insertImageIntoEditor(event)
+    )
+
+    // Show/hide load more link
+    this.loadMoreEl.style.display = this.hasMoreResults ? 'inline' : 'none'
+  }
+
+  async loadMore () {
+    this.currentPage++
+    this.loadMoreEl.textContent = 'Loading...'
+
+    try {
+      let assets: ImmichAsset[]
+      if (this.currentMode === 'search') {
+        assets = await this.plugin.immichApi.searchPhotos(
+          this.currentQuery,
+          this.plugin.settings.recentPhotosCount,
+          this.currentPage
+        )
+      } else {
+        assets = await this.plugin.immichApi.getRecentPhotos(
+          this.plugin.settings.recentPhotosCount,
+          this.currentPage
+        )
+      }
+
+      await this.displayPhotos(assets, this.currentMode, this.currentQuery, true)
+      this.loadMoreEl.textContent = 'Load more...'
     } catch (error) {
-      console.error('Failed to load photos:', error)
-      statusEl.setText('Error: ' + (error as Error).message)
-      new Notice('Failed to load photos from Immich: ' + (error as Error).message)
+      console.error('Failed to load more photos:', error)
+      new Notice('Failed to load more photos: ' + (error as Error).message)
+      this.loadMoreEl.textContent = 'Load more...'
     }
   }
 

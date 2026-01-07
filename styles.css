@@ -2,27 +2,34 @@
 .immich-picker-modal {
   width: 600px;
   max-width: 90vw;
-  max-height: 80vh;
+  height: 70vh;
 }
 
 .immich-picker-modal .modal-content {
   overflow-y: auto;
-  max-height: calc(80vh - 60px);
+  height: calc(70vh - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
+.immich-picker-modal .immich-picker-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /* Photo Grid */
 .immich-picker-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  justify-content: flex-start;
   padding: 8px 0;
 }
 
 /* Thumbnail */
 .immich-picker-thumbnail {
-  width: 150px;
-  height: 150px;
+  width: 100%;
+  aspect-ratio: 1;
   object-fit: cover;
   border-radius: 4px;
   cursor: pointer;
@@ -40,10 +47,76 @@
   transform: scale(0.98);
 }
 
+/* Search */
+.immich-picker-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.immich-picker-search-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.immich-picker-search-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.immich-picker-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.immich-picker-search-button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+}
+
+.immich-picker-search-button:hover {
+  background: var(--interactive-accent-hover);
+}
+
 /* Settings */
 .immich-picker-settings textarea {
   width: 300px;
   min-height: 80px;
   font-family: var(--font-monospace);
   font-size: var(--font-smaller);
+}
+
+/* Footer */
+.immich-picker-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.immich-picker-hint {
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+}
+
+.immich-picker-load-more {
+  color: var(--interactive-accent);
+  cursor: pointer;
+  font-size: var(--font-smaller);
+}
+
+.immich-picker-load-more:hover {
+  text-decoration: underline;
 }
