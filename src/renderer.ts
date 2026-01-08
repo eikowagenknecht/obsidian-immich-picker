@@ -11,22 +11,15 @@ export class ThumbnailImage extends Image {
   description: string
 }
 
-export default class Renderer {
+export class GridView {
   plugin: ImmichPicker
-
-  constructor (plugin: ImmichPicker) {
-    this.plugin = plugin
-  }
-}
-
-export class GridView extends Renderer {
   onThumbnailClick: (event: MouseEvent) => void
   containerEl: HTMLElement
   scrollEl: HTMLElement
   isLoading = false
 
   constructor (options: { scrollEl: HTMLElement, plugin: ImmichPicker, onThumbnailClick: (event: MouseEvent) => void }) {
-    super(options.plugin)
+    this.plugin = options.plugin
     this.scrollEl = options.scrollEl
     this.onThumbnailClick = options.onThumbnailClick
     this.containerEl = document.createElement('div')
