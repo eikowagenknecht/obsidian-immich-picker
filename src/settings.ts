@@ -220,7 +220,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Thumbnail settings')
+      .setName('Thumbnails')
       .setHeading()
       .setDesc('Configure the locally-saved thumbnail images.')
 

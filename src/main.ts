@@ -127,7 +127,8 @@ export default class ImmichPicker extends Plugin {
       const meta = this.app.metadataCache.getFileCache(file)
       const frontMatter = meta?.frontmatter
       if (frontMatter && frontMatter[this.settings.getDateFromFrontMatterKey]) {
-        const date = moment(frontMatter[this.settings.getDateFromFrontMatterKey], this.settings.getDateFromFormat, true)
+        const dateValue = frontMatter[this.settings.getDateFromFrontMatterKey] as string
+        const date = moment(dateValue, this.settings.getDateFromFormat, true)
         return date.isValid() ? date : null
       }
     }
@@ -136,7 +137,7 @@ export default class ImmichPicker extends Plugin {
   }
 
   async loadSettings () {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<ImmichPickerSettings>)
   }
 
   async saveSettings () {

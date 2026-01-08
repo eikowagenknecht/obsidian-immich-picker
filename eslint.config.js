@@ -19,7 +19,13 @@ export default tseslint.config(
         createEl: 'readonly',
         createSpan: 'readonly',
         activeDocument: 'readonly',
-        activeWindow: 'readonly'
+        activeWindow: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        Image: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
+        btoa: 'readonly'
       }
     },
     rules: {

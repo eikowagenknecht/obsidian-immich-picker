@@ -1,4 +1,6 @@
 // Credits go to Liam's Periodic Notes Plugin: https://github.com/liamcain/obsidian-periodic-notes
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable obsidianmd/prefer-abstract-input-suggest -- using established pattern from popular plugin */
 
 import { App, ISuggestOwner, Scope } from 'obsidian'
 import { createPopper, Instance as PopperInstance } from '@popperjs/core'

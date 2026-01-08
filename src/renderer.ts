@@ -1,6 +1,5 @@
 import { moment, requestUrl } from 'obsidian'
 import ImmichPicker from './main'
-import { Moment } from 'moment'
 import { ImmichAsset } from './immichApi'
 
 export class ThumbnailImage extends Image {
@@ -8,7 +7,7 @@ export class ThumbnailImage extends Image {
   immichUrl: string
   filename: string
   originalFilename: string
-  creationTime: Moment
+  creationTime: moment.Moment
   description: string
 }
 
@@ -36,12 +35,14 @@ export class GridView extends Renderer {
   }
 
   async resetGrid () {
-    this.containerEl.innerHTML = '<p>Downloading thumbnail...</p>'
+    this.containerEl.empty()
+    this.containerEl.createEl('p', { text: 'Downloading thumbnail...' })
   }
 
   async setLoading () {
     this.isLoading = true
-    this.containerEl.innerHTML = '<p>Loading photos...</p>'
+    this.containerEl.empty()
+    this.containerEl.createEl('p', { text: 'Loading photos...' })
   }
 
   async appendThumbnailsToElement (el: HTMLElement, assets: ImmichAsset[], onclick: (event: MouseEvent) => void) {
