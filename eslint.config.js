@@ -12,6 +12,14 @@ export default tseslint.config(
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname
+      },
+      globals: {
+        console: 'readonly',
+        createDiv: 'readonly',
+        createEl: 'readonly',
+        createSpan: 'readonly',
+        activeDocument: 'readonly',
+        activeWindow: 'readonly'
       }
     },
     rules: {
