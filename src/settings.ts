@@ -285,7 +285,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .setName('Thumbnail image folder')
       .setDesc('Thumbnails will be saved to this folder')
       .addSearch(search => {
-        new FolderSuggest(search.inputEl)
+        new FolderSuggest(this.app, search.inputEl)
         search.setPlaceholder('Path/for/thumbnails')
           .setValue(this.plugin.settings.locationFolder)
           .onChange(async value => {
