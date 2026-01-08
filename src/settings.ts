@@ -55,7 +55,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     containerEl.addClass('immich-picker-settings')
 
     const setVisible = (setting: Setting, visible: boolean) => {
-      setting.settingEl.style.display = visible ? 'flex' : 'none'
+      setting.settingEl.toggle(visible)
     }
 
     /*
@@ -374,18 +374,18 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
   }
 
   updateFilenamePreview (el: HTMLElement, format: string): void {
+    el.removeClass('is-muted', 'is-error')
     if (!format.trim()) {
       el.setText('Enter a format')
-      el.style.color = 'var(--text-muted)'
+      el.addClass('is-muted')
       return
     }
     try {
       const preview = moment().format(format)
       el.setText(preview)
-      el.style.color = ''
     } catch {
       el.setText('Invalid format')
-      el.style.color = 'var(--text-error)'
+      el.addClass('is-error')
     }
   }
 }

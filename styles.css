@@ -1,3 +1,8 @@
+/* Utility classes */
+.is-hidden {
+  display: none !important;
+}
+
 /* Immich Picker Modal */
 .immich-picker-modal {
   width: 600px;
@@ -120,6 +125,14 @@
   min-height: 80px;
   font-family: var(--font-monospace);
   font-size: var(--font-smaller);
+}
+
+.immich-filename-preview.is-muted {
+  color: var(--text-muted);
+}
+
+.immich-filename-preview.is-error {
+  color: var(--text-error);
 }
 
 /* Footer */

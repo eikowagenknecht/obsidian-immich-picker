@@ -60,18 +60,18 @@ export class ImmichPickerModal extends Modal {
       cls: 'immich-picker-back',
       href: '#'
     })
-    this.backButton.style.display = 'none'
+    this.backButton.hide()
     this.backButton.addEventListener('click', async e => {
       e.preventDefault()
       if (this.currentMode === 'album') {
         await this.loadAlbums()
       } else if (this.currentMode === 'albums' || this.currentMode === 'date') {
-        this.searchContainer.style.display = 'flex'
-        this.backButton.style.display = 'none'
+        this.searchContainer.show()
+        this.backButton.hide()
         this.hintEl.setText('Click an image to insert it')
         // Show date banner again if we have a note date
         if (this.noteDate) {
-          this.dateBanner.style.display = 'block'
+          this.dateBanner.show()
         }
         await this.loadRecentPhotos()
       }
@@ -95,7 +95,7 @@ export class ImmichPickerModal extends Modal {
 
     // Date banner (will be shown if note date is detected)
     this.dateBanner = contentEl.createDiv({ cls: 'immich-picker-date-banner' })
-    this.dateBanner.style.display = 'none'
+    this.dateBanner.hide()
 
     this.gridContainerEl = contentEl.createDiv({ cls: 'immich-picker-grid-container' })
 
@@ -110,7 +110,7 @@ export class ImmichPickerModal extends Modal {
       cls: 'immich-picker-insert-all',
       href: '#'
     })
-    this.insertAllEl.style.display = 'none'
+    this.insertAllEl.hide()
     this.insertAllEl.addEventListener('click', async e => {
       e.preventDefault()
       await this.insertAllAlbumPhotos()
@@ -125,7 +125,7 @@ export class ImmichPickerModal extends Modal {
       e.preventDefault()
       if (this.currentMode === 'album') {
         // Album mode: show all remaining photos
-        this.loadMoreEl.style.display = 'none'
+        this.loadMoreEl.hide()
         await this.gridView.appendThumbnailsToElement(
           this.gridView.containerEl,
           this.currentAlbumAssets.slice(this.plugin.settings.recentPhotosCount),
@@ -136,7 +136,7 @@ export class ImmichPickerModal extends Modal {
         await this.loadMore()
       }
     })
-    this.loadMoreEl.style.display = 'none'
+    this.loadMoreEl.hide()
 
     // Show Immich link hint if paste conversion is enabled
     if (this.plugin.settings.convertPastedLink) {
@@ -169,7 +169,7 @@ export class ImmichPickerModal extends Modal {
     })
 
     // Check if albums are accessible and show/hide button
-    this.albumsButton.style.display = 'none'
+    this.albumsButton.hide()
     this.checkAlbumsAccess()
 
     // Check for note date and show date banner if found
@@ -179,7 +179,7 @@ export class ImmichPickerModal extends Modal {
       if (this.noteDate) {
         const formattedDate = this.noteDate.format('MMMM D, YYYY')
         this.dateBanner.setText(`📅 Show photos from ${formattedDate}?`)
-        this.dateBanner.style.display = 'block'
+        this.dateBanner.show()
         this.dateBanner.addEventListener('click', async () => {
           await this.loadPhotosByDate()
         })
@@ -196,7 +196,7 @@ export class ImmichPickerModal extends Modal {
   async checkAlbumsAccess () {
     try {
       await this.plugin.immichApi.getAlbums()
-      this.albumsButton.style.display = 'block'
+      this.albumsButton.show()
     } catch {
       // Albums not accessible, keep button hidden
     }
@@ -262,7 +262,7 @@ export class ImmichPickerModal extends Modal {
 
     if (assets.length === 0 && !append) {
       this.setTitle(mode === 'search' ? `Immich photos - No results for "${query}"` : 'Immich photos - No photos found')
-      this.loadMoreEl.style.display = 'none'
+      this.loadMoreEl.hide()
       return
     }
 
@@ -287,7 +287,7 @@ export class ImmichPickerModal extends Modal {
     )
 
     // Show/hide load more link
-    this.loadMoreEl.style.display = this.hasMoreResults ? 'inline' : 'none'
+    this.loadMoreEl.toggle(this.hasMoreResults)
   }
 
   async loadMore () {
@@ -334,9 +334,9 @@ export class ImmichPickerModal extends Modal {
     this.hasMoreResults = true
 
     // Hide search bar and date banner, show back button
-    this.searchContainer.style.display = 'none'
-    this.dateBanner.style.display = 'none'
-    this.backButton.style.display = 'inline'
+    this.searchContainer.hide()
+    this.dateBanner.hide()
+    this.backButton.show()
     this.backButton.textContent = '← back to recent'
 
     const dateStr = this.noteDate.format('YYYY-MM-DD')
@@ -360,11 +360,11 @@ export class ImmichPickerModal extends Modal {
     this.currentMode = 'albums'
     this.currentAlbum = null
     this.setTitle('Immich albums - loading...')
-    this.searchContainer.style.display = 'none'
-    this.dateBanner.style.display = 'none'
-    this.loadMoreEl.style.display = 'none'
-    this.insertAllEl.style.display = 'none'
-    this.backButton.style.display = 'inline'
+    this.searchContainer.hide()
+    this.dateBanner.hide()
+    this.loadMoreEl.hide()
+    this.insertAllEl.hide()
+    this.backButton.show()
     this.backButton.textContent = '← back to photos'
     this.hintEl.setText('Click an album to browse its photos')
 
@@ -436,10 +436,10 @@ export class ImmichPickerModal extends Modal {
     this.currentMode = 'album'
     this.currentAlbum = album
     this.setTitle(`${album.albumName} - loading...`)
-    this.backButton.style.display = 'inline'
+    this.backButton.show()
     this.backButton.textContent = '← back to albums'
-    this.loadMoreEl.style.display = 'none'
-    this.insertAllEl.style.display = 'none'
+    this.loadMoreEl.hide()
+    this.insertAllEl.hide()
     this.hintEl.setText('Click an image to insert it')
 
     // Show loading indicator
@@ -466,12 +466,12 @@ export class ImmichPickerModal extends Modal {
 
     if (assets.length === 0) {
       this.setTitle(`${album.albumName} - Empty album`)
-      this.insertAllEl.style.display = 'none'
+      this.insertAllEl.hide()
       return
     }
 
     this.setTitle(`${album.albumName} - ${totalCount} photos`)
-    this.insertAllEl.style.display = 'inline'
+    this.insertAllEl.show()
     this.insertAllEl.textContent = `Insert all ${totalCount}`
 
     this.gridView = new GridView({
@@ -490,7 +490,7 @@ export class ImmichPickerModal extends Modal {
 
     // Show load more if there are more photos
     if (assets.length < totalCount) {
-      this.loadMoreEl.style.display = 'inline'
+      this.loadMoreEl.show()
       this.loadMoreEl.textContent = `Show all ${totalCount}`
     }
   }
