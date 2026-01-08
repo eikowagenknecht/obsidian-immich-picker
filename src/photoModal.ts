@@ -61,10 +61,10 @@ export class ImmichPickerModal extends Modal {
       href: '#'
     })
     this.backButton.hide()
-    this.backButton.addEventListener('click', async e => {
+    this.backButton.addEventListener('click', e => {
       e.preventDefault()
       if (this.currentMode === 'album') {
-        await this.loadAlbums()
+        void this.loadAlbums()
       } else if (this.currentMode === 'albums' || this.currentMode === 'date') {
         this.searchContainer.show()
         this.backButton.hide()
@@ -73,7 +73,7 @@ export class ImmichPickerModal extends Modal {
         if (this.noteDate) {
           this.dateBanner.show()
         }
-        await this.loadRecentPhotos()
+        void this.loadRecentPhotos()
       }
     })
 
@@ -111,9 +111,9 @@ export class ImmichPickerModal extends Modal {
       href: '#'
     })
     this.insertAllEl.hide()
-    this.insertAllEl.addEventListener('click', async e => {
+    this.insertAllEl.addEventListener('click', e => {
       e.preventDefault()
-      await this.insertAllAlbumPhotos()
+      void this.insertAllAlbumPhotos()
     })
 
     this.loadMoreEl = this.footerRow1.createEl('a', {
@@ -121,19 +121,19 @@ export class ImmichPickerModal extends Modal {
       cls: 'immich-picker-load-more',
       href: '#'
     })
-    this.loadMoreEl.addEventListener('click', async e => {
+    this.loadMoreEl.addEventListener('click', e => {
       e.preventDefault()
       if (this.currentMode === 'album') {
         // Album mode: show all remaining photos
         this.loadMoreEl.hide()
-        await this.gridView.appendThumbnailsToElement(
+        void this.gridView.appendThumbnailsToElement(
           this.gridView.containerEl,
           this.currentAlbumAssets.slice(this.plugin.settings.recentPhotosCount),
-          event => this.insertImageIntoEditor(event)
+          event => { void this.insertImageIntoEditor(event) }
         )
       } else {
         // Regular mode: load next page
-        await this.loadMore()
+        void this.loadMore()
       }
     })
     this.loadMoreEl.hide()
@@ -151,26 +151,26 @@ export class ImmichPickerModal extends Modal {
     }
 
     // Search on Enter key
-    this.searchInput.addEventListener('keydown', async e => {
+    this.searchInput.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault()
-        await this.triggerSearch()
+        void this.triggerSearch()
       }
     })
 
     // Search on button click (for mobile)
-    searchButton.addEventListener('click', async () => {
-      await this.triggerSearch()
+    searchButton.addEventListener('click', () => {
+      void this.triggerSearch()
     })
 
     // Albums button click
-    this.albumsButton.addEventListener('click', async () => {
-      await this.loadAlbums()
+    this.albumsButton.addEventListener('click', () => {
+      void this.loadAlbums()
     })
 
     // Check if albums are accessible and show/hide button
     this.albumsButton.hide()
-    this.checkAlbumsAccess()
+    void this.checkAlbumsAccess()
 
     // Check for note date and show date banner if found
     const noteFile = this.view.file
@@ -180,14 +180,14 @@ export class ImmichPickerModal extends Modal {
         const formattedDate = this.noteDate.format('MMMM D, YYYY')
         this.dateBanner.setText(`📅 Show photos from ${formattedDate}?`)
         this.dateBanner.show()
-        this.dateBanner.addEventListener('click', async () => {
-          await this.loadPhotosByDate()
+        this.dateBanner.addEventListener('click', () => {
+          void this.loadPhotosByDate()
         })
       }
     }
 
     // Load recent photos initially
-    await this.loadRecentPhotos()
+    void this.loadRecentPhotos()
 
     // Focus search input
     this.searchInput.focus()
@@ -255,7 +255,7 @@ export class ImmichPickerModal extends Modal {
       this.gridView = new GridView({
         scrollEl: this.modalEl,
         plugin: this.plugin,
-        onThumbnailClick: event => this.insertImageIntoEditor(event)
+        onThumbnailClick: event => { void this.insertImageIntoEditor(event) }
       })
       this.gridContainerEl.appendChild(this.gridView.containerEl)
     }
@@ -283,7 +283,7 @@ export class ImmichPickerModal extends Modal {
     await this.gridView.appendThumbnailsToElement(
       this.gridView.containerEl,
       assets,
-      event => this.insertImageIntoEditor(event)
+      event => { void this.insertImageIntoEditor(event) }
     )
 
     // Show/hide load more link
@@ -403,7 +403,7 @@ export class ImmichPickerModal extends Modal {
         const img = albumEl.createEl('img', { cls: 'immich-picker-album-thumb' })
         img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="150" fill="#f0f0f0"/><text x="75" y="80" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">Loading...</text></svg>')
         // Load thumbnail asynchronously
-        this.loadAlbumThumbnail(img, album.albumThumbnailAssetId)
+        void this.loadAlbumThumbnail(img, album.albumThumbnailAssetId)
       } else {
         albumEl.createDiv({ cls: 'immich-picker-album-placeholder' })
       }
@@ -412,8 +412,8 @@ export class ImmichPickerModal extends Modal {
       albumEl.createDiv({ cls: 'immich-picker-album-name', text: album.albumName })
       albumEl.createDiv({ cls: 'immich-picker-album-count', text: `${album.assetCount} photos` })
 
-      albumEl.addEventListener('click', async () => {
-        await this.loadAlbumPhotos(album)
+      albumEl.addEventListener('click', () => {
+        void this.loadAlbumPhotos(album)
       })
     }
   }
@@ -477,13 +477,13 @@ export class ImmichPickerModal extends Modal {
     this.gridView = new GridView({
       scrollEl: this.modalEl,
       plugin: this.plugin,
-      onThumbnailClick: event => this.insertImageIntoEditor(event)
+      onThumbnailClick: event => { void this.insertImageIntoEditor(event) }
     })
 
     await this.gridView.appendThumbnailsToElement(
       this.gridView.containerEl,
       assets,
-      event => this.insertImageIntoEditor(event)
+      event => { void this.insertImageIntoEditor(event) }
     )
 
     this.gridContainerEl.appendChild(this.gridView.containerEl)

@@ -175,7 +175,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
               return
             }
             state.styles.popper.width = targetWidth
-            instance.update().then()
+            void instance.update()
           },
           phase: 'beforeWrite',
           requires: ['computeStyles']
