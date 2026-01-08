@@ -52,11 +52,11 @@ export class ImmichPickerModal extends Modal {
       modalEl.addClass('immich-picker-modal')
     }
 
-    this.setTitle('Immich Photos')
+    this.setTitle('Immich photos')
 
     // Back button (top of content)
     this.backButton = contentEl.createEl('a', {
-      text: '← Back to albums',
+      text: '← back to albums',
       cls: 'immich-picker-back',
       href: '#'
     })
@@ -99,7 +99,7 @@ export class ImmichPickerModal extends Modal {
 
     this.gridContainerEl = contentEl.createDiv({ cls: 'immich-picker-grid-container' })
 
-    // Footer with help text and load more
+    // footer with help text and load more
     this.footerEl = contentEl.createDiv({ cls: 'immich-picker-footer' })
 
     this.footerRow1 = this.footerEl.createDiv({ cls: 'immich-picker-footer-row' })
@@ -144,7 +144,7 @@ export class ImmichPickerModal extends Modal {
       const hintSpan = footerRow2.createSpan({ cls: 'immich-picker-hint' })
       hintSpan.appendText('Or browse ')
       hintSpan.createEl('a', {
-        text: 'your Immich',
+        text: 'Your immich',
         href: this.plugin.settings.serverUrl
       })
       hintSpan.appendText(' and paste any photo URL directly into your note')
@@ -208,14 +208,14 @@ export class ImmichPickerModal extends Modal {
     this.currentQuery = ''
     this.hasMoreResults = true
 
-    this.setTitle('Immich Photos - Loading...')
+    this.setTitle('Immich photos - loading...')
     try {
       const assets = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount, 1)
       await this.displayPhotos(assets, 'recent', undefined, false)
     } catch (error) {
       console.error('Failed to load photos:', error)
-      this.setTitle('Immich Photos - Error')
-      new Notice('Failed to load photos from Immich: ' + (error as Error).message)
+      this.setTitle('Immich photos - error')
+      new Notice('Failed to load photos from immich: ' + (error as Error).message)
     }
   }
 
@@ -231,13 +231,13 @@ export class ImmichPickerModal extends Modal {
     this.currentQuery = query
     this.hasMoreResults = true
 
-    this.setTitle('Immich Photos - Searching...')
+    this.setTitle('Immich photos - searching...')
     try {
       const assets = await this.plugin.immichApi.searchPhotos(query, this.plugin.settings.recentPhotosCount, 1)
       await this.displayPhotos(assets, 'search', query, false)
     } catch (error) {
       console.error('Failed to search photos:', error)
-      this.setTitle('Immich Photos - Search error')
+      this.setTitle('Immich photos - search error')
       new Notice('Search failed: ' + (error as Error).message)
     }
   }
@@ -261,7 +261,7 @@ export class ImmichPickerModal extends Modal {
     }
 
     if (assets.length === 0 && !append) {
-      this.setTitle(mode === 'search' ? `Immich Photos - No results for "${query}"` : 'Immich Photos - No photos found')
+      this.setTitle(mode === 'search' ? `Immich photos - No results for "${query}"` : 'Immich photos - No photos found')
       this.loadMoreEl.style.display = 'none'
       return
     }
@@ -272,11 +272,11 @@ export class ImmichPickerModal extends Modal {
 
     let title: string
     if (mode === 'search') {
-      title = `Immich Photos - "${query}" (${totalCount})`
+      title = `Immich photos - "${query}" (${totalCount})`
     } else if (mode === 'date') {
-      title = `Immich Photos - ${query} (${totalCount})`
+      title = `Immich photos - ${query} (${totalCount})`
     } else {
-      title = `Immich Photos - ${totalCount} recent`
+      title = `Immich photos - ${totalCount} recent`
     }
     this.setTitle(title)
 
@@ -337,10 +337,10 @@ export class ImmichPickerModal extends Modal {
     this.searchContainer.style.display = 'none'
     this.dateBanner.style.display = 'none'
     this.backButton.style.display = 'inline'
-    this.backButton.textContent = '← Back to recent'
+    this.backButton.textContent = '← back to recent'
 
     const dateStr = this.noteDate.format('YYYY-MM-DD')
-    this.setTitle(`Immich Photos - Loading ${dateStr}...`)
+    this.setTitle(`Immich photos - loading ${dateStr}...`)
 
     try {
       const assets = await this.plugin.immichApi.getPhotosByDate(
@@ -351,7 +351,7 @@ export class ImmichPickerModal extends Modal {
       await this.displayPhotos(assets, 'date', dateStr, false)
     } catch (error) {
       console.error('Failed to load photos by date:', error)
-      this.setTitle(`Immich Photos - Error loading ${dateStr}`)
+      this.setTitle(`Immich photos - error loading ${dateStr}`)
       new Notice('Failed to load photos: ' + (error as Error).message)
     }
   }
@@ -359,13 +359,13 @@ export class ImmichPickerModal extends Modal {
   async loadAlbums () {
     this.currentMode = 'albums'
     this.currentAlbum = null
-    this.setTitle('Immich Albums - Loading...')
+    this.setTitle('Immich albums - loading...')
     this.searchContainer.style.display = 'none'
     this.dateBanner.style.display = 'none'
     this.loadMoreEl.style.display = 'none'
     this.insertAllEl.style.display = 'none'
     this.backButton.style.display = 'inline'
-    this.backButton.textContent = '← Back to photos'
+    this.backButton.textContent = '← back to photos'
     this.hintEl.setText('Click an album to browse its photos')
 
     try {
@@ -373,7 +373,7 @@ export class ImmichPickerModal extends Modal {
       await this.displayAlbums(albums)
     } catch (error) {
       console.error('Failed to load albums:', error)
-      this.setTitle('Immich Albums - Error')
+      this.setTitle('Immich albums - error')
       new Notice('Failed to load albums: ' + (error as Error).message)
     }
   }
@@ -383,14 +383,14 @@ export class ImmichPickerModal extends Modal {
     this.gridView?.destroy()
 
     if (albums.length === 0) {
-      this.setTitle('Immich Albums - No albums found')
+      this.setTitle('Immich albums - no albums found')
       return
     }
 
     // Sort by most recently updated
     albums.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
-    this.setTitle(`Immich Albums - ${albums.length} albums`)
+    this.setTitle(`Immich albums - ${albums.length} albums`)
 
     const grid = this.gridContainerEl.createDiv({ cls: 'immich-picker-grid' })
     grid.style.gridTemplateColumns = `repeat(${this.plugin.settings.gridColumns}, 1fr)`
@@ -435,9 +435,9 @@ export class ImmichPickerModal extends Modal {
   async loadAlbumPhotos (album: ImmichAlbum) {
     this.currentMode = 'album'
     this.currentAlbum = album
-    this.setTitle(`${album.albumName} - Loading...`)
+    this.setTitle(`${album.albumName} - loading...`)
     this.backButton.style.display = 'inline'
-    this.backButton.textContent = '← Back to albums'
+    this.backButton.textContent = '← back to albums'
     this.loadMoreEl.style.display = 'none'
     this.insertAllEl.style.display = 'none'
     this.hintEl.setText('Click an image to insert it')
@@ -455,7 +455,7 @@ export class ImmichPickerModal extends Modal {
       await this.displayAlbumPhotos(displayAssets, album, assets.length)
     } catch (error) {
       console.error('Failed to load album photos:', error)
-      this.setTitle(`${album.albumName} - Error`)
+      this.setTitle(`${album.albumName} - error`)
       new Notice('Failed to load album photos: ' + (error as Error).message)
     }
   }
@@ -622,7 +622,7 @@ export class ImmichPickerModal extends Modal {
         await vault.createFolder(thumbnailFolder)
       }
 
-      // Download thumbnail from Immich
+      // Download thumbnail from immich
       const imageData = await this.plugin.immichApi.downloadThumbnail(thumbnailImage.assetId)
 
       const savePath = thumbnailFolder ? thumbnailFolder + '/' + thumbnailImage.filename : thumbnailImage.filename

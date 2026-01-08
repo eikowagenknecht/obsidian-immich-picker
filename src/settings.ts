@@ -63,12 +63,12 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Immich Server Connection')
+      .setName('Immich server connection')
       .setHeading()
 
     new Setting(containerEl)
       .setName('Server URL')
-      .setDesc('The URL of your Immich server (e.g., https://immich.example.com)')
+      .setDesc('The URL of your immich server (e.g., https://immich.example.com)')
       .addText(text => text
         .setPlaceholder('https://immich.example.com')
         .setValue(this.plugin.settings.serverUrl)
@@ -79,7 +79,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         }))
 
     new Setting(containerEl)
-      .setName('API Key')
+      .setName('API key')
       .addText(text => text
         .setPlaceholder('Enter your API key')
         .setValue(this.plugin.settings.apiKey)
@@ -88,21 +88,24 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
       .then(setting => {
-        setting.descEl.appendText('Generate in Immich under Account Settings > API Keys.')
+        setting.descEl.appendText('Generate in immich under Account Settings > API Keys.')
         setting.descEl.createEl('br')
         setting.descEl.appendText('Required permissions: ')
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- technical API permission code
         setting.descEl.createEl('code', { text: 'asset.read' })
         setting.descEl.appendText(', ')
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- technical API permission code
         setting.descEl.createEl('code', { text: 'asset.view' })
         setting.descEl.createEl('br')
         setting.descEl.appendText('Optional for albums: ')
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- technical API permission code
         setting.descEl.createEl('code', { text: 'album.read' })
       })
 
     new Setting(containerEl)
-      .setDesc('Test your connection to the Immich server.')
+      .setDesc('Test your connection to the immich server.')
       .addButton(btn => btn
-        .setButtonText('Test Connection')
+        .setButtonText('Test connection')
         .setCta()
         .onClick(async () => {
           try {
@@ -122,12 +125,12 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Photo Picker')
+      .setName('Photo picker')
       .setHeading()
 
     new Setting(containerEl)
       .setName('Photos per page')
-      .setDesc('Number of photos to load at a time (recent, search results, and "Load next")')
+      .setDesc('Number of photos to load at a time (recent, search results, and "load next")')
       .addText(text => text
         .setPlaceholder(DEFAULT_SETTINGS.recentPhotosCount.toString())
         .setValue(this.plugin.settings.recentPhotosCount.toString())
@@ -158,7 +161,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Note Date Detection')
+      .setName('Note date detection')
       .setHeading()
       .setDesc('Detect a date from the current note to filter photos.')
 
@@ -185,7 +188,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .then(setting => {
         setting.descEl.appendText('Expected date format in title/frontmatter (')
         setting.descEl.createEl('a', {
-          text: 'MomentJS format',
+          text: 'Moment.js format',
           href: 'https://momentjs.com/docs/#/displaying/format/'
         })
         setting.descEl.appendText(').')
@@ -217,7 +220,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Thumbnail Settings')
+      .setName('Thumbnail settings')
       .setHeading()
       .setDesc('Configure the locally-saved thumbnail images.')
 
@@ -258,7 +261,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .then(setting => {
         setting.descEl.appendText('Filename format for saving thumbnails (')
         setting.descEl.createEl('a', {
-          text: 'MomentJS format',
+          text: 'Moment.js format',
           href: 'https://momentjs.com/docs/#/displaying/format/'
         })
         setting.descEl.appendText(').')
@@ -274,7 +277,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Storage Location')
+      .setName('Storage location')
       .setHeading()
 
     const locationOptionEl = new Setting(this.containerEl)
@@ -283,7 +286,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .setDesc('Thumbnails will be saved to this folder')
       .addSearch(search => {
         new FolderSuggest(search.inputEl)
-        search.setPlaceholder('Path/For/Thumbnails')
+        search.setPlaceholder('Path/for/thumbnails')
           .setValue(this.plugin.settings.locationFolder)
           .onChange(async value => {
             this.plugin.settings.locationFolder = value.trim()
@@ -296,7 +299,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .setDesc('Subfolder within the current note\'s folder')
       .addText(text => {
         text
-          .setPlaceholder('photos')
+          .setPlaceholder('Photos')
           .setValue(this.plugin.settings.locationSubfolder)
           .onChange(async value => {
             this.plugin.settings.locationSubfolder = value.trim().replace(/^[\\/]+/, '').replace(/[\\/]+$/, '')
@@ -330,7 +333,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
      */
 
     new Setting(containerEl)
-      .setName('Output Format')
+      .setName('Output format')
       .setHeading()
 
     new Setting(containerEl)
@@ -343,18 +346,20 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           this.plugin.settings.thumbnailMarkdown = value
           await this.plugin.saveSettings()
         }))
+      /* eslint-disable obsidianmd/ui/sentence-case -- variable names with underscores */
       .then(setting => {
         const ul = setting.descEl.createEl('ul')
-        ul.createEl('li').setText('local_thumbnail_link - Path to the local thumbnail')
-        ul.createEl('li').setText('immich_url - URL to the photo in Immich')
-        ul.createEl('li').setText('immich_asset_id - The Immich asset ID')
-        ul.createEl('li').setText('original_filename - Original filename from Immich')
-        ul.createEl('li').setText('taken_date - Date the photo was taken')
-        ul.createEl('li').setText('description - Photo description from Immich')
+        ul.createEl('li').setText('local_thumbnail_link - path to the local thumbnail')
+        ul.createEl('li').setText('immich_url - URL to the photo in immich')
+        ul.createEl('li').setText('immich_asset_id - the immich asset ID')
+        ul.createEl('li').setText('original_filename - original filename from immich')
+        ul.createEl('li').setText('taken_date - date the photo was taken')
+        ul.createEl('li').setText('description - photo description from immich')
       })
+      /* eslint-enable obsidianmd/ui/sentence-case */
 
     new Setting(containerEl)
-      .setName('Convert pasted Immich links')
+      .setName('Convert pasted immich links')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.convertPastedLink)
         .onChange(async value => {
