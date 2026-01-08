@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-immich-picker",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Insert images from a self-hosted Immich photo server",
 	"type": "module",
 	"main": "main.js",
