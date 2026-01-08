@@ -10,7 +10,9 @@ When publishing a new version:
 2. Push commits: `git push origin master`
 3. Create and push tag **without the 'v' prefix**: `git tag X.Y.Z && git push origin X.Y.Z`
 
-**IMPORTANT**: Use `1.1.1` NOT `v1.1.1` for tags. The release workflow expects tags without the 'v' prefix.
+**IMPORTANT**:
+- Use `1.1.1` NOT `v1.1.1` for tags. The release workflow expects tags without the 'v' prefix.
+- **NEVER re-release the same version number**. If a release fails, bump to the next version (e.g., if 1.1.1 fails, release as 1.1.2).
 
 ## Code Style
 
