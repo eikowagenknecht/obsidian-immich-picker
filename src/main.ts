@@ -43,7 +43,6 @@ export default class ImmichPicker extends Plugin {
         evt.preventDefault()
 
         try {
-          // Show loading notice
           const loadingNotice = new Notice('Downloading thumbnail from immich...', 0)
 
           const noteFile = view.file
@@ -57,40 +56,15 @@ export default class ImmichPicker extends Plugin {
           const creationTime = moment()
           const filename = creationTime.format(this.settings.filename)
 
-          let thumbnailFolder = noteFolder
-          let linkPath = filename
+          const { thumbnailFolder, linkPath, savePath } = this.computeThumbnailPaths(noteFolder, filename)
+          await this.ensureFolderExists(thumbnailFolder)
+          await this.saveThumbnailToVault(assetId, savePath)
 
-          switch (this.settings.locationOption) {
-            case 'specified':
-              thumbnailFolder = this.settings.locationFolder
-              linkPath = thumbnailFolder + '/' + filename
-              break
-            case 'subfolder':
-              thumbnailFolder = noteFolder + '/' + this.settings.locationSubfolder
-              linkPath = this.settings.locationSubfolder + '/' + filename
-              break
-          }
-
-          thumbnailFolder = thumbnailFolder.replace(/^\/+/, '').replace(/\/+$/, '')
-          linkPath = encodeURI(linkPath)
-
-          const vault = this.app.vault
-          if (thumbnailFolder && !await vault.adapter.exists(thumbnailFolder)) {
-            await vault.createFolder(thumbnailFolder)
-          }
-
-          // Download thumbnail
-          const imageData = await this.immichApi.downloadThumbnail(assetId)
-
-          const savePath = thumbnailFolder ? thumbnailFolder + '/' + filename : filename
-          await vault.adapter.writeBinary(savePath, imageData)
-
-          const linkText = handlebarParse(this.settings.thumbnailMarkdown, {
-            local_thumbnail_link: linkPath,
-            immich_asset_id: assetId,
-            immich_url: this.immichApi.getAssetUrl(assetId),
-            original_filename: '',
-            taken_date: creationTime.format(),
+          const linkText = this.generateThumbnailMarkdown({
+            linkPath,
+            assetId,
+            originalFilename: '',
+            takenDate: creationTime.format(),
             description: ''
           })
 
@@ -111,8 +85,67 @@ export default class ImmichPicker extends Plugin {
   }
 
   /**
-   * Gets the date from the note title or frontmatter based on user settings
+   * Computes thumbnail folder and link paths based on settings
    */
+  computeThumbnailPaths (noteFolder: string, filename: string): { thumbnailFolder: string, linkPath: string, savePath: string } {
+    let thumbnailFolder = noteFolder
+    let linkPath = filename
+
+    switch (this.settings.locationOption) {
+      case 'specified':
+        thumbnailFolder = this.settings.locationFolder
+        linkPath = thumbnailFolder + '/' + filename
+        break
+      case 'subfolder':
+        thumbnailFolder = noteFolder + '/' + this.settings.locationSubfolder
+        linkPath = this.settings.locationSubfolder + '/' + filename
+        break
+    }
+
+    thumbnailFolder = thumbnailFolder.replace(/^\/+/, '').replace(/\/+$/, '')
+    linkPath = encodeURI(linkPath)
+    const savePath = thumbnailFolder ? thumbnailFolder + '/' + filename : filename
+
+    return { thumbnailFolder, linkPath, savePath }
+  }
+
+  /**
+   * Creates folder if it doesn't exist
+   */
+  async ensureFolderExists (folderPath: string): Promise<void> {
+    if (folderPath && !await this.app.vault.adapter.exists(folderPath)) {
+      await this.app.vault.createFolder(folderPath)
+    }
+  }
+
+  /**
+   * Downloads thumbnail from immich and saves to vault
+   */
+  async saveThumbnailToVault (assetId: string, savePath: string): Promise<void> {
+    const imageData = await this.immichApi.downloadThumbnail(assetId)
+    await this.app.vault.adapter.writeBinary(savePath, imageData)
+  }
+
+  /**
+   * Generates markdown text for inserted thumbnail
+   */
+  generateThumbnailMarkdown (params: {
+    linkPath: string,
+    assetId: string,
+    originalFilename: string,
+    takenDate: string,
+    description: string
+  }): string {
+    return handlebarParse(this.settings.thumbnailMarkdown, {
+      local_thumbnail_link: params.linkPath,
+      immich_asset_id: params.assetId,
+      immich_url: this.immichApi.getAssetUrl(params.assetId),
+      original_filename: params.originalFilename,
+      taken_date: params.takenDate,
+      description: params.description
+    })
+  }
+
   getNoteDate (file: TFile): moment.Moment | null {
     if (this.settings.getDateFrom === 'none') {
       return null

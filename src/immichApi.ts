@@ -206,10 +206,6 @@ export class ImmichApi {
     return album.assets || []
   }
 
-  getAlbumUrl (albumId: string): string {
-    return `${this.serverUrl}/albums/${albumId}`
-  }
-
   extractAssetIdFromUrl (url: string): string | null {
     // Match pattern: {serverUrl}/photos/{uuid}
     const serverUrlPattern = this.serverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

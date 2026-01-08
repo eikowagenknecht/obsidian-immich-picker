@@ -1,6 +1,7 @@
 import { moment, requestUrl } from 'obsidian'
 import ImmichPicker from './main'
 import { ImmichAsset } from './immichApi'
+import { createLoadingSvg, createErrorSvg } from './svgPlaceholders'
 
 export class ThumbnailImage extends Image {
   assetId: string
@@ -16,7 +17,6 @@ export class GridView {
   onThumbnailClick: (event: MouseEvent) => void
   containerEl: HTMLElement
   scrollEl: HTMLElement
-  isLoading = false
 
   constructor (options: { scrollEl: HTMLElement, plugin: ImmichPicker, onThumbnailClick: (event: MouseEvent) => void }) {
     this.plugin = options.plugin
@@ -32,12 +32,6 @@ export class GridView {
     this.containerEl.createEl('p', { text: 'Downloading thumbnail...' })
   }
 
-  async setLoading () {
-    this.isLoading = true
-    this.containerEl.empty()
-    this.containerEl.createEl('p', { text: 'Loading photos...' })
-  }
-
   async appendThumbnailsToElement (el: HTMLElement, assets: ImmichAsset[], onclick: (event: MouseEvent) => void) {
     for (const asset of assets || []) {
       const img = new ThumbnailImage()
@@ -46,12 +40,7 @@ export class GridView {
 
       try {
         // Create placeholder while loading
-        img.src = 'data:image/svg+xml;base64,' + btoa(`
-          <svg width="150" height="150" xmlns="http://www.w3.org/2000/svg">
-            <rect width="150" height="150" fill="#f0f0f0"/>
-            <text x="75" y="80" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">Loading...</text>
-          </svg>
-        `)
+        img.src = createLoadingSvg()
 
         // Set properties
         img.assetId = asset.id
@@ -102,22 +91,9 @@ export class GridView {
         }
 
         console.error(`Failed to load image (${errorMsg}):`, error)
-
-        // Show error with hint in the thumbnail
-        const lines = hint
-          ? `<text x="75" y="70" text-anchor="middle" fill="#c62828" font-family="Arial" font-size="11">${errorMsg}</text>
-             <text x="75" y="90" text-anchor="middle" fill="#666" font-family="Arial" font-size="9">${hint}</text>`
-          : `<text x="75" y="80" text-anchor="middle" fill="#c62828" font-family="Arial" font-size="11">${errorMsg}</text>`
-
-        img.src = 'data:image/svg+xml;base64,' + btoa(`
-          <svg width="150" height="150" xmlns="http://www.w3.org/2000/svg">
-            <rect width="150" height="150" fill="#ffebee"/>
-            ${lines}
-          </svg>
-        `)
+        img.src = createErrorSvg(errorMsg, hint || undefined)
       }
     }
-    this.isLoading = false
   }
 
   destroy () {

@@ -10,8 +10,8 @@ import {
 } from 'obsidian'
 import { GridView, ThumbnailImage } from './renderer'
 import ImmichPicker from './main'
-import { handlebarParse } from './handlebars'
 import { ImmichAlbum, ImmichAsset } from './immichApi'
+import { createLoadingSvg, createEmptySvg } from './svgPlaceholders'
 
 export class ImmichPickerModal extends Modal {
   plugin: ImmichPicker
@@ -202,6 +202,13 @@ export class ImmichPickerModal extends Modal {
     }
   }
 
+  showLoading () {
+    this.gridView?.destroy()
+    this.gridContainerEl.empty()
+    this.gridContainerEl.createDiv({ cls: 'immich-picker-loading', text: 'Loading photos...' })
+    this.loadMoreEl.hide()
+  }
+
   async loadRecentPhotos () {
     this.currentPage = 1
     this.currentMode = 'recent'
@@ -209,6 +216,7 @@ export class ImmichPickerModal extends Modal {
     this.hasMoreResults = true
 
     this.setTitle('Immich photos - loading...')
+    this.showLoading()
     try {
       const assets = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount, 1)
       await this.displayPhotos(assets, 'recent', undefined, false)
@@ -232,6 +240,7 @@ export class ImmichPickerModal extends Modal {
     this.hasMoreResults = true
 
     this.setTitle('Immich photos - searching...')
+    this.showLoading()
     try {
       const assets = await this.plugin.immichApi.searchPhotos(query, this.plugin.settings.recentPhotosCount, 1)
       await this.displayPhotos(assets, 'search', query, false)
@@ -341,6 +350,7 @@ export class ImmichPickerModal extends Modal {
 
     const dateStr = this.noteDate.format('YYYY-MM-DD')
     this.setTitle(`Immich photos - loading ${dateStr}...`)
+    this.showLoading()
 
     try {
       const assets = await this.plugin.immichApi.getPhotosByDate(
@@ -401,7 +411,7 @@ export class ImmichPickerModal extends Modal {
       // Album thumbnail
       if (album.albumThumbnailAssetId) {
         const img = albumEl.createEl('img', { cls: 'immich-picker-album-thumb' })
-        img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="150" fill="#f0f0f0"/><text x="75" y="80" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">Loading...</text></svg>')
+        img.src = createLoadingSvg()
         // Load thumbnail asynchronously
         void this.loadAlbumThumbnail(img, album.albumThumbnailAssetId)
       } else {
@@ -428,7 +438,7 @@ export class ImmichPickerModal extends Modal {
       const blob = new Blob([response.arrayBuffer])
       img.src = URL.createObjectURL(blob)
     } catch {
-      img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="150" height="150" fill="#ddd"/></svg>')
+      img.src = createEmptySvg()
     }
   }
 
@@ -438,13 +448,9 @@ export class ImmichPickerModal extends Modal {
     this.setTitle(`${album.albumName} - loading...`)
     this.backButton.show()
     this.backButton.textContent = '← back to albums'
-    this.loadMoreEl.hide()
     this.insertAllEl.hide()
     this.hintEl.setText('Click an image to insert it')
-
-    // Show loading indicator
-    this.gridContainerEl.empty()
-    this.gridContainerEl.createDiv({ cls: 'immich-picker-loading', text: 'Loading photos...' })
+    this.showLoading()
 
     try {
       const assets = await this.plugin.immichApi.getAlbumAssets(album.id)
@@ -512,23 +518,11 @@ export class ImmichPickerModal extends Modal {
 
     try {
       const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
-      let thumbnailFolder = noteFolder
-
-      switch (this.plugin.settings.locationOption) {
-        case 'specified':
-          thumbnailFolder = this.plugin.settings.locationFolder
-          break
-        case 'subfolder':
-          thumbnailFolder = noteFolder + '/' + this.plugin.settings.locationSubfolder
-          break
-      }
-
-      thumbnailFolder = thumbnailFolder.replace(/^\/+/, '').replace(/\/+$/, '')
-
-      const vault = this.view.app.vault
-      if (thumbnailFolder && !await vault.adapter.exists(thumbnailFolder)) {
-        await vault.createFolder(thumbnailFolder)
-      }
+      // Ensure folder exists once before the loop
+      const firstAsset = this.currentAlbumAssets[0]
+      const firstFilename = window.moment(firstAsset.fileCreatedAt).format(this.plugin.settings.filename)
+      const { thumbnailFolder } = this.plugin.computeThumbnailPaths(noteFolder, firstFilename)
+      await this.plugin.ensureFolderExists(thumbnailFolder)
 
       let insertedText = ''
 
@@ -538,34 +532,19 @@ export class ImmichPickerModal extends Modal {
 
         const creationTime = window.moment(asset.fileCreatedAt)
         const filename = creationTime.format(this.plugin.settings.filename)
-        let linkPath = filename
+        const { linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, filename)
 
-        switch (this.plugin.settings.locationOption) {
-          case 'specified':
-            linkPath = thumbnailFolder + '/' + filename
-            break
-          case 'subfolder':
-            linkPath = this.plugin.settings.locationSubfolder + '/' + filename
-            break
-        }
-
-        linkPath = encodeURI(linkPath)
-
-        // Download thumbnail
-        const imageData = await this.plugin.immichApi.downloadThumbnail(asset.id)
-        const savePath = thumbnailFolder ? thumbnailFolder + '/' + filename : filename
-        await vault.adapter.writeBinary(savePath, imageData)
+        await this.plugin.saveThumbnailToVault(asset.id, savePath)
 
         // Get description
         const assetDetails = await this.plugin.immichApi.getAssetDetails(asset.id)
         const description = assetDetails.exifInfo?.description || ''
 
-        const linkText = handlebarParse(this.plugin.settings.thumbnailMarkdown, {
-          local_thumbnail_link: linkPath,
-          immich_asset_id: asset.id,
-          immich_url: this.plugin.immichApi.getAssetUrl(asset.id),
-          original_filename: asset.originalFileName,
-          taken_date: creationTime.format(),
+        const linkText = this.plugin.generateThumbnailMarkdown({
+          linkPath,
+          assetId: asset.id,
+          originalFilename: asset.originalFileName,
+          takenDate: creationTime.format(),
           description
         })
 
@@ -600,48 +579,23 @@ export class ImmichPickerModal extends Modal {
       }
 
       const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
-      let thumbnailFolder = noteFolder
-      let linkPath = thumbnailImage.filename
-
-      switch (this.plugin.settings.locationOption) {
-        case 'specified':
-          thumbnailFolder = this.plugin.settings.locationFolder
-          linkPath = thumbnailFolder + '/' + thumbnailImage.filename
-          break
-        case 'subfolder':
-          thumbnailFolder = noteFolder + '/' + this.plugin.settings.locationSubfolder
-          linkPath = this.plugin.settings.locationSubfolder + '/' + thumbnailImage.filename
-          break
-      }
-
-      thumbnailFolder = thumbnailFolder.replace(/^\/+/, '').replace(/\/+$/, '')
-      linkPath = encodeURI(linkPath)
-
-      const vault = this.view.app.vault
-      if (thumbnailFolder && !await vault.adapter.exists(thumbnailFolder)) {
-        await vault.createFolder(thumbnailFolder)
-      }
-
-      // Download thumbnail from immich
-      const imageData = await this.plugin.immichApi.downloadThumbnail(thumbnailImage.assetId)
-
-      const savePath = thumbnailFolder ? thumbnailFolder + '/' + thumbnailImage.filename : thumbnailImage.filename
-      await vault.adapter.writeBinary(savePath, imageData)
+      const { thumbnailFolder, linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, thumbnailImage.filename)
+      await this.plugin.ensureFolderExists(thumbnailFolder)
+      await this.plugin.saveThumbnailToVault(thumbnailImage.assetId, savePath)
 
       // Fetch asset details to get description
       const assetDetails = await this.plugin.immichApi.getAssetDetails(thumbnailImage.assetId)
       const description = assetDetails.exifInfo?.description || ''
 
-      const cursorPosition = this.editor.getCursor()
-      const linkText = handlebarParse(this.plugin.settings.thumbnailMarkdown, {
-        local_thumbnail_link: linkPath,
-        immich_asset_id: thumbnailImage.assetId,
-        immich_url: thumbnailImage.immichUrl,
-        original_filename: thumbnailImage.originalFilename,
-        taken_date: thumbnailImage.creationTime.format(),
+      const linkText = this.plugin.generateThumbnailMarkdown({
+        linkPath,
+        assetId: thumbnailImage.assetId,
+        originalFilename: thumbnailImage.originalFilename,
+        takenDate: thumbnailImage.creationTime.format(),
         description
       })
 
+      const cursorPosition = this.editor.getCursor()
       this.editor.replaceRange(linkText, cursorPosition)
       this.editor.setCursor({ line: cursorPosition.line, ch: cursorPosition.ch + linkText.length })
     } catch (e) {
