@@ -31,11 +31,10 @@
 	"devDependencies": {
 		"@eslint/json": "^0.14.0",
 		"@types/node": "^16.11.6",
-		"@typescript-eslint/eslint-plugin": "^8.52.0",
-		"@typescript-eslint/parser": "^8.52.0",
 		"esbuild": "0.14.47",
 		"eslint": "^9.39.2",
 		"eslint-plugin-obsidianmd": "^0.1.9",
+		"knip": "^5.80.0",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
 		"typescript": "^5.9.3",
