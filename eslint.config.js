@@ -1,13 +1,16 @@
 import obsidianmd from 'eslint-plugin-obsidianmd'
 import tseslint from 'typescript-eslint'
 
-export default tseslint.config(
+export default [
   {
     ignores: ['node_modules/**', 'main.js', 'eslint.config.js', '*.mjs']
   },
-  ...obsidianmd.configs.recommended,
+  ...tseslint.configs.recommended,
   {
     files: ['**/*.ts'],
+    plugins: {
+      obsidianmd
+    },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -29,6 +32,21 @@ export default tseslint.config(
       }
     },
     rules: {
+      ...obsidianmd.configs.recommended,
+      'obsidianmd/ui/sentence-case': ['error', {
+        brands: ['Immich', 'Markdown'],
+        ignoreRegex: [
+          '^asset\\.read$',
+          '^asset\\.view$',
+          '^album\\.read$',
+          '^local_thumbnail_link -',
+          '^immich_url -',
+          '^immich_asset_id -',
+          '^original_filename -',
+          '^taken_date -',
+          '^description -'
+        ]
+      }],
       'no-new': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { args: 'none' }],
@@ -40,4 +58,4 @@ export default tseslint.config(
       'arrow-parens': ['error', 'as-needed']
     }
   }
-)
+]

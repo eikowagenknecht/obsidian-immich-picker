@@ -45,7 +45,7 @@ export class ImmichPickerModal extends Modal {
     this.view = view
   }
 
-  async onOpen () {
+  onOpen () {
     const { contentEl, modalEl } = this
 
     if (Platform.isDesktop) {
@@ -144,7 +144,7 @@ export class ImmichPickerModal extends Modal {
       const hintSpan = footerRow2.createSpan({ cls: 'immich-picker-hint' })
       hintSpan.appendText('Or browse ')
       hintSpan.createEl('a', {
-        text: 'Your immich',
+        text: 'Your Immich',
         href: this.plugin.settings.serverUrl
       })
       hintSpan.appendText(' and paste any photo URL directly into your note')
@@ -223,7 +223,7 @@ export class ImmichPickerModal extends Modal {
     } catch (error) {
       console.error('Failed to load photos:', error)
       this.setTitle('Immich photos - error')
-      new Notice('Failed to load photos from immich: ' + (error as Error).message)
+      new Notice('Failed to load photos from Immich: ' + (error as Error).message)
     }
   }
 
@@ -380,7 +380,7 @@ export class ImmichPickerModal extends Modal {
 
     try {
       const albums = await this.plugin.immichApi.getAlbums()
-      await this.displayAlbums(albums)
+      this.displayAlbums(albums)
     } catch (error) {
       console.error('Failed to load albums:', error)
       this.setTitle('Immich albums - error')
@@ -388,7 +388,7 @@ export class ImmichPickerModal extends Modal {
     }
   }
 
-  async displayAlbums (albums: ImmichAlbum[]) {
+  displayAlbums (albums: ImmichAlbum[]) {
     this.gridContainerEl.empty()
     this.gridView?.destroy()
 
@@ -568,7 +568,7 @@ export class ImmichPickerModal extends Modal {
 
   async insertImageIntoEditor (event: MouseEvent) {
     try {
-      await this.gridView.resetGrid()
+      this.gridView.resetGrid()
       const thumbnailImage = event.target as ThumbnailImage
 
       const noteFile = this.view.file

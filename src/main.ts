@@ -17,10 +17,10 @@ export default class ImmichPicker extends Plugin {
 
     this.addCommand({
       id: 'insert-immich-photo',
-      name: 'Insert image from immich',
+      name: 'Insert image from Immich',
       editorCallback: (editor: Editor, view: MarkdownView) => {
         if (!this.settings.serverUrl || !this.settings.apiKey) {
-          new Notice('Please configure immich server URL and API key in settings')
+          new Notice('Please configure Immich server URL and API key in settings')
           return
         }
         new ImmichPickerModal(this.app, this, editor, view).open()
@@ -43,7 +43,7 @@ export default class ImmichPicker extends Plugin {
         evt.preventDefault()
 
         try {
-          const loadingNotice = new Notice('Downloading thumbnail from immich...', 0)
+          const loadingNotice = new Notice('Downloading thumbnail from Immich...', 0)
 
           const noteFile = view.file
           if (!noteFile) {
@@ -73,10 +73,10 @@ export default class ImmichPicker extends Plugin {
           editor.setCursor({ line: cursorPosition.line, ch: cursorPosition.ch + linkText.length })
 
           loadingNotice.hide()
-          new Notice('Image inserted from immich')
+          new Notice('Image inserted from Immich')
         } catch (e) {
           console.error('Failed to process Immich URL:', e)
-          new Notice('Failed to download from immich: ' + (e as Error).message)
+          new Notice('Failed to download from Immich: ' + (e as Error).message)
           // Fall back to pasting the original URL
           editor.replaceSelection(clipboardText)
         }
@@ -119,7 +119,7 @@ export default class ImmichPicker extends Plugin {
   }
 
   /**
-   * Downloads thumbnail from immich and saves to vault
+   * Downloads thumbnail from Immich and saves to vault
    */
   async saveThumbnailToVault (assetId: string, savePath: string): Promise<void> {
     const imageData = await this.immichApi.downloadThumbnail(assetId)

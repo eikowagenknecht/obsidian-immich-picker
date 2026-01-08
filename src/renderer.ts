@@ -27,7 +27,7 @@ export class GridView {
     this.containerEl.style.gridTemplateColumns = `repeat(${this.plugin.settings.gridColumns}, 1fr)`
   }
 
-  async resetGrid () {
+  resetGrid () {
     this.containerEl.empty()
     this.containerEl.createEl('p', { text: 'Downloading thumbnail...' })
   }

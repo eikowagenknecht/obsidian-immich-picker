@@ -68,7 +68,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Server URL')
-      .setDesc('The URL of your immich server (e.g., https://immich.example.com)')
+      .setDesc('The URL of your Immich server (e.g., https://immich.example.com)')
       .addText(text => text
         .setPlaceholder('https://immich.example.com')
         .setValue(this.plugin.settings.serverUrl)
@@ -88,22 +88,19 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
       .then(setting => {
-        setting.descEl.appendText('Generate in immich under Account Settings > API Keys.')
+        setting.descEl.appendText('Generate in Immich under Account Settings > API Keys.')
         setting.descEl.createEl('br')
         setting.descEl.appendText('Required permissions: ')
-        // eslint-disable-next-line obsidianmd/ui/sentence-case -- technical API permission code
         setting.descEl.createEl('code', { text: 'asset.read' })
         setting.descEl.appendText(', ')
-        // eslint-disable-next-line obsidianmd/ui/sentence-case -- technical API permission code
         setting.descEl.createEl('code', { text: 'asset.view' })
         setting.descEl.createEl('br')
         setting.descEl.appendText('Optional for albums: ')
-        // eslint-disable-next-line obsidianmd/ui/sentence-case -- technical API permission code
         setting.descEl.createEl('code', { text: 'album.read' })
       })
 
     new Setting(containerEl)
-      .setDesc('Test your connection to the immich server.')
+      .setDesc('Test your connection to the Immich server.')
       .addButton(btn => btn
         .setButtonText('Test connection')
         .setCta()
@@ -346,20 +343,18 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           this.plugin.settings.thumbnailMarkdown = value
           await this.plugin.saveSettings()
         }))
-      /* eslint-disable obsidianmd/ui/sentence-case -- variable names with underscores */
       .then(setting => {
         const ul = setting.descEl.createEl('ul')
         ul.createEl('li').setText('local_thumbnail_link - path to the local thumbnail')
-        ul.createEl('li').setText('immich_url - URL to the photo in immich')
-        ul.createEl('li').setText('immich_asset_id - the immich asset ID')
-        ul.createEl('li').setText('original_filename - original filename from immich')
+        ul.createEl('li').setText('immich_url - URL to the photo in Immich')
+        ul.createEl('li').setText('immich_asset_id - the Immich asset ID')
+        ul.createEl('li').setText('original_filename - original filename from Immich')
         ul.createEl('li').setText('taken_date - date the photo was taken')
-        ul.createEl('li').setText('description - photo description from immich')
+        ul.createEl('li').setText('description - photo description from Immich')
       })
-      /* eslint-enable obsidianmd/ui/sentence-case */
 
     new Setting(containerEl)
-      .setName('Convert pasted immich links')
+      .setName('Convert pasted Immich links')
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.convertPastedLink)
         .onChange(async value => {
