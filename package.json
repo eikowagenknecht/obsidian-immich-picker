@@ -30,7 +30,7 @@
 	},
 	"devDependencies": {
 		"@eslint/json": "^0.14.0",
-		"@types/node": "^16.11.6",
+		"@types/node": "^18.19.130",
 		"esbuild": "0.14.47",
 		"eslint": "^9.39.2",
 		"eslint-plugin-obsidianmd": "^0.1.9",
