@@ -1,10 +1,12 @@
 export interface HandlebarTemplate {
   local_thumbnail_link?: string;
+  immich_thumbnail_url?: string;
   immich_url?: string;
   immich_asset_id?: string;
   original_filename?: string;
   taken_date?: string;
   description?: string;
+  display_width?: string;
 }
 
 export function handlebarParse (content: string, template: HandlebarTemplate) {

@@ -37,6 +37,7 @@ export class ImmichPickerModal extends Modal {
   currentAlbumAssets: ImmichAsset[] = []
   hasMoreResults = true
   noteDate: moment.Moment | null = null
+  selectedWidth = 0
 
   constructor (app: App, plugin: ImmichPicker, editor: Editor, view: MarkdownView) {
     super(app)
@@ -98,6 +99,29 @@ export class ImmichPickerModal extends Modal {
     this.dateBanner.hide()
 
     this.gridContainerEl = contentEl.createDiv({ cls: 'immich-picker-grid-container' })
+
+    // Size selector bubbles
+    this.selectedWidth = this.plugin.settings.displayWidth
+    const sizeRow = contentEl.createDiv({ cls: 'immich-picker-size-row' })
+    sizeRow.createSpan({ text: 'Size: ', cls: 'immich-picker-size-label' })
+    const sizes = [
+      { label: 'Original', value: 0 },
+      { label: '200', value: 200 },
+      { label: '400', value: 400 },
+      { label: '600', value: 600 },
+      { label: '800', value: 800 }
+    ]
+    for (const size of sizes) {
+      const bubble = sizeRow.createEl('button', {
+        text: size.label,
+        cls: 'immich-picker-size-bubble' + (this.selectedWidth === size.value ? ' is-active' : '')
+      })
+      bubble.addEventListener('click', () => {
+        this.selectedWidth = size.value
+        sizeRow.querySelectorAll('.immich-picker-size-bubble').forEach(b => b.removeClass('is-active'))
+        bubble.addClass('is-active')
+      })
+    }
 
     // footer with help text and load more
     this.footerEl = contentEl.createDiv({ cls: 'immich-picker-footer' })
@@ -433,7 +457,7 @@ export class ImmichPickerModal extends Modal {
       const thumbnailUrl = this.plugin.immichApi.getThumbnailUrl(assetId)
       const response = await requestUrl({
         url: thumbnailUrl,
-        headers: { 'x-api-key': this.plugin.settings.apiKey }
+        headers: { 'x-api-key': this.plugin.cachedApiKey || this.plugin.settings.apiKey }
       })
       const blob = new Blob([response.arrayBuffer])
       img.src = URL.createObjectURL(blob)
@@ -514,15 +538,22 @@ export class ImmichPickerModal extends Modal {
       return
     }
 
+    // Apply selected width from modal bubbles
+    this.plugin.settings.displayWidth = this.selectedWidth
+
+    const isLocal = this.plugin.settings.imageMode === 'local'
     const loadingNotice = new Notice(`Inserting ${this.currentAlbumAssets.length} photos...`, 0)
 
     try {
       const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
-      // Ensure folder exists once before the loop
-      const firstAsset = this.currentAlbumAssets[0]
-      const firstFilename = window.moment(firstAsset.fileCreatedAt).format(this.plugin.settings.filename)
-      const { thumbnailFolder } = this.plugin.computeThumbnailPaths(noteFolder, firstFilename)
-      await this.plugin.ensureFolderExists(thumbnailFolder)
+
+      // Only set up folders for local mode
+      if (isLocal) {
+        const firstAsset = this.currentAlbumAssets[0]
+        const firstFilename = window.moment(firstAsset.fileCreatedAt).format(this.plugin.settings.filename)
+        const { thumbnailFolder } = this.plugin.computeThumbnailPaths(noteFolder, firstFilename)
+        await this.plugin.ensureFolderExists(thumbnailFolder)
+      }
 
       let insertedText = ''
 
@@ -531,22 +562,42 @@ export class ImmichPickerModal extends Modal {
         loadingNotice.setMessage(`Inserting photo ${i + 1}/${this.currentAlbumAssets.length}...`)
 
         const creationTime = window.moment(asset.fileCreatedAt)
-        const filename = creationTime.format(this.plugin.settings.filename)
-        const { linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, filename)
 
-        await this.plugin.saveThumbnailToVault(asset.id, savePath)
-
-        // Get description
+        // Get description and dimensions
         const assetDetails = await this.plugin.immichApi.getAssetDetails(asset.id)
         const description = assetDetails.exifInfo?.description || ''
+        const origWidth = assetDetails.exifInfo?.exifImageWidth
+        const origHeight = assetDetails.exifInfo?.exifImageHeight
 
-        const linkText = this.plugin.generateThumbnailMarkdown({
-          linkPath,
-          assetId: asset.id,
-          originalFilename: asset.originalFileName,
-          takenDate: creationTime.format(),
-          description
-        })
+        let linkText: string
+
+        if (this.plugin.settings.imageMode === 'remote') {
+          linkText = this.plugin.generateRemoteMarkdown(asset.id, origWidth, origHeight)
+        } else if (this.plugin.settings.imageMode === 'shared') {
+          linkText = await this.plugin.generateSharedMarkdown({
+            assetId: asset.id,
+            originalFilename: asset.originalFileName,
+            takenDate: creationTime.format(),
+            description,
+            origWidth,
+            origHeight
+          })
+        } else {
+          const filename = creationTime.format(this.plugin.settings.filename)
+          const { linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, filename)
+
+          await this.plugin.saveThumbnailToVault(asset.id, savePath)
+
+          linkText = this.plugin.generateThumbnailMarkdown({
+            linkPath,
+            assetId: asset.id,
+            originalFilename: asset.originalFileName,
+            takenDate: creationTime.format(),
+            description,
+            origWidth,
+            origHeight
+          })
+        }
 
         insertedText += linkText
       }
@@ -578,29 +629,51 @@ export class ImmichPickerModal extends Modal {
         return
       }
 
-      const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
-      const { thumbnailFolder, linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, thumbnailImage.filename)
-      await this.plugin.ensureFolderExists(thumbnailFolder)
-      await this.plugin.saveThumbnailToVault(thumbnailImage.assetId, savePath)
+      // Apply selected width from modal bubbles
+      this.plugin.settings.displayWidth = this.selectedWidth
 
       // Fetch asset details to get description
       const assetDetails = await this.plugin.immichApi.getAssetDetails(thumbnailImage.assetId)
       const description = assetDetails.exifInfo?.description || ''
+      const origWidth = assetDetails.exifInfo?.exifImageWidth
+      const origHeight = assetDetails.exifInfo?.exifImageHeight
 
-      const linkText = this.plugin.generateThumbnailMarkdown({
-        linkPath,
-        assetId: thumbnailImage.assetId,
-        originalFilename: thumbnailImage.originalFilename,
-        takenDate: thumbnailImage.creationTime.format(),
-        description
-      })
+      let linkText: string
+
+      if (this.plugin.settings.imageMode === 'remote') {
+        linkText = this.plugin.generateRemoteMarkdown(thumbnailImage.assetId, origWidth, origHeight)
+      } else if (this.plugin.settings.imageMode === 'shared') {
+        linkText = await this.plugin.generateSharedMarkdown({
+          assetId: thumbnailImage.assetId,
+          originalFilename: thumbnailImage.originalFilename,
+          takenDate: thumbnailImage.creationTime.format(),
+          description,
+          origWidth,
+          origHeight
+        })
+      } else {
+        const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
+        const { thumbnailFolder, linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, thumbnailImage.filename)
+        await this.plugin.ensureFolderExists(thumbnailFolder)
+        await this.plugin.saveThumbnailToVault(thumbnailImage.assetId, savePath)
+
+        linkText = this.plugin.generateThumbnailMarkdown({
+          linkPath,
+          assetId: thumbnailImage.assetId,
+          originalFilename: thumbnailImage.originalFilename,
+          takenDate: thumbnailImage.creationTime.format(),
+          description,
+          origWidth,
+          origHeight
+        })
+      }
 
       const cursorPosition = this.editor.getCursor()
       this.editor.replaceRange(linkText, cursorPosition)
       this.editor.setCursor({ line: cursorPosition.line, ch: cursorPosition.ch + linkText.length })
     } catch (e) {
       console.error('Failed to insert image:', e)
-      new Notice('Failed to download thumbnail: ' + (e as Error).message)
+      new Notice('Failed to insert image: ' + (e as Error).message)
     }
     this.close()
   }

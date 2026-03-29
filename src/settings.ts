@@ -1,14 +1,23 @@
-import { App, moment, Notice, PluginSettingTab, Setting } from 'obsidian'
+import { App, Modal, moment, Notice, Platform, PluginSettingTab, Setting } from 'obsidian'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 import ImmichPicker from './main'
+import { createVaultShare, importVaultShare, hasVaultShare, createShareString, importShareString } from './credentialSharing'
+import { debugLog } from './debugLog'
 
 export type GetDateFromOption = 'none' | 'title' | 'frontmatter';
+export type RemoteFormatOption = 'server-url' | 'code-block';
+
+export type ImageModeOption = 'local' | 'remote' | 'shared';
 
 export interface ImmichPickerSettings {
   serverUrl: string;
   apiKey: string;
   recentPhotosCount: number;
   gridColumns: number;
+  imageMode: ImageModeOption;
+  remoteFormat: RemoteFormatOption;
+  displayWidth: number;
+  renderInEditMode: boolean;
   thumbnailWidth: number;
   thumbnailHeight: number;
   filename: string;
@@ -27,6 +36,10 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   apiKey: '',
   recentPhotosCount: 9,
   gridColumns: 3,
+  imageMode: 'local',
+  remoteFormat: 'server-url',
+  displayWidth: 0,
+  renderInEditMode: true,
   thumbnailWidth: 400,
   thumbnailHeight: 280,
   filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
@@ -42,6 +55,9 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
 
 export class ImmichPickerSettingTab extends PluginSettingTab {
   plugin: ImmichPicker
+  shareMethod: 'vault' | 'string' = 'vault'
+  lastShareResult: { pin: string, shareString: string } | null = null
+  shareResultTimer: number | null = null
 
   constructor (app: App, plugin: ImmichPicker) {
     super(app, plugin)
@@ -78,17 +94,29 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
 
-    new Setting(containerEl)
+    const apiKeySetting = new Setting(containerEl)
       .setName('API key')
-      .addText(text => text
+
+    // Load API key asynchronously and populate input
+    void (async () => {
+      const currentKey = await this.plugin.getApiKey()
+      apiKeySetting.addText(text => text
         .setPlaceholder('Enter your API key')
-        .setValue(this.plugin.settings.apiKey)
+        .setValue(currentKey)
         .onChange(async value => {
-          this.plugin.settings.apiKey = value.trim()
-          await this.plugin.saveSettings()
+          await this.plugin.setApiKey(value.trim())
         }))
-      .then(setting => {
+      apiKeySetting.then(setting => {
         setting.descEl.appendText('Generate in Immich under Account Settings > API Keys.')
+        setting.descEl.createEl('br')
+        if (this.plugin.hasSecretStorage()) {
+          setting.descEl.createEl('span', {
+            text: 'Stored securely via credential manager.',
+            cls: 'mod-success'
+          })
+        } else {
+          setting.descEl.appendText('Stored in plugin data file.')
+        }
         setting.descEl.createEl('br')
         setting.descEl.appendText('Required permissions: ')
         setting.descEl.createEl('code', { text: 'asset.read' })
@@ -98,6 +126,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         setting.descEl.appendText('Optional for albums: ')
         setting.descEl.createEl('code', { text: 'album.read' })
       })
+    })()
 
     new Setting(containerEl)
       .setDesc('Test your connection to the Immich server.')
@@ -116,6 +145,52 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
             new Notice('Connection failed: ' + (e as Error).message)
           }
         }))
+
+    // Mobile toolbar setup (only shown on mobile)
+    if (Platform.isMobile) {
+      new Setting(containerEl)
+        .setName('Mobile quick access')
+        .setDesc('Ways to quickly insert photos on mobile')
+        .addButton(btn => btn
+          .setButtonText('How to set up')
+          .onClick(() => {
+            const modal = new Modal(this.app)
+            modal.setTitle('Quick access on mobile')
+
+            const content = modal.contentEl
+
+            content.createEl('p', { text: 'Two ways to quickly insert photos on mobile:' })
+
+            content.createEl('strong').textContent = '1. Menu icon (already set up)'
+            const ribbon1 = content.createEl('p')
+            ribbon1.appendText('Tap the \u2261 menu at the bottom right \u2014 the Immich camera icon is already there.')
+            const ribbon2 = content.createEl('p')
+            ribbon2.appendText('To reorder: ')
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            ribbon2.createEl('strong').textContent = 'Settings \u2192 Appearance \u2192 Ribbon menu'
+
+            content.createEl('strong').textContent = '2. Keyboard toolbar (optional)'
+            const toolbar1 = content.createEl('p')
+            toolbar1.appendText('Add the command to the bar above your keyboard when editing:')
+            const toolbar2 = content.createEl('p')
+            toolbar2.appendText('Go to ')
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            toolbar2.createEl('strong').textContent = 'Settings \u2192 Toolbar'
+            toolbar2.appendText(', tap +, search "Immich"')
+
+            const tip = content.createEl('p')
+            tip.createEl('small', { text: 'For more customization, try the ' })
+            const tipLink = tip.createEl('small')
+            tipLink.createEl('a', { text: 'Commander', href: 'obsidian://show-plugin?id=cmdr' })
+            tipLink.appendText(' plugin.')
+
+            const btnRow = content.createDiv({ attr: { style: 'display:flex;gap:8px;margin-top:12px;' } })
+            const okBtn = btnRow.createEl('button', { text: 'Got it', cls: 'mod-cta' })
+            okBtn.addEventListener('click', () => { modal.close() })
+
+            modal.open()
+          }))
+    }
 
     /*
      Photo picker settings
@@ -152,6 +227,90 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings()
           }
         }))
+
+    /*
+     Image mode settings
+     */
+
+    new Setting(containerEl)
+      .setName('Image mode')
+      .setHeading()
+
+    new Setting(containerEl)
+      .setName('How to store images')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption('local', 'Download to vault')
+          .addOption('remote', 'Load from Immich server')
+          .addOption('shared', 'Use Immich shared links')
+          .setValue(this.plugin.settings.imageMode)
+          .onChange(async value => {
+            this.plugin.settings.imageMode = value as 'local' | 'remote' | 'shared'
+            await this.plugin.saveSettings()
+            // Re-render to show/hide dependent sections
+            this.display()
+          })
+      })
+      .then(setting => {
+        setting.descEl.appendText('Local: downloads thumbnail files into your vault. ')
+        setting.descEl.createEl('br')
+        setting.descEl.appendText('Remote: images are fetched live from Immich when rendering (no files saved, requires plugin). ')
+        setting.descEl.createEl('br')
+        setting.descEl.appendText('Shared: creates public Immich shared links (works without plugin, but URLs are public).')
+      })
+
+    // Remote format sub-mode (only visible in remote mode)
+    if (this.plugin.settings.imageMode === 'remote') {
+      new Setting(containerEl)
+        .setName('Remote image format')
+        .addDropdown(dropdown => {
+          dropdown
+            .addOption('server-url', 'Server link (recommended)')
+            .addOption('code-block', 'Code block')
+            .setValue(this.plugin.settings.remoteFormat)
+            .onChange(async value => {
+              this.plugin.settings.remoteFormat = value as RemoteFormatOption
+              await this.plugin.saveSettings()
+              this.display()
+            })
+        })
+        .then(setting => {
+          setting.descEl.appendText('Server link: standard markdown image. Shows broken image outside Obsidian.')
+          setting.descEl.createEl('br')
+          setting.descEl.appendText('Code block: Obsidian-only rendering. Shows text outside Obsidian.')
+          setting.descEl.createEl('br')
+          setting.descEl.createEl('br')
+          setting.descEl.appendText('Use "Convert remote images to current format" command to convert existing notes.')
+        })
+
+      new Setting(containerEl)
+        .setName('Render in edit mode')
+        .setDesc('Show images inline while editing. Turn off for standard behavior.')
+        .addToggle(toggle => toggle
+          .setValue(this.plugin.settings.renderInEditMode)
+          .onChange(async value => {
+            this.plugin.settings.renderInEditMode = value
+            await this.plugin.saveSettings()
+          }))
+    }
+
+    // Display width (shown in all modes)
+    new Setting(containerEl)
+      .setName('Display width')
+      .setDesc('Default width for inserted images (in pixels). Set to 0 for original size.')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption('0', 'Original size')
+          .addOption('200', '200px')
+          .addOption('400', '400px')
+          .addOption('600', '600px')
+          .addOption('800', '800px')
+          .setValue(this.plugin.settings.displayWidth.toString())
+          .onChange(async value => {
+            this.plugin.settings.displayWidth = parseInt(value, 10)
+            await this.plugin.saveSettings()
+          })
+      })
 
     /*
      Date detection settings
@@ -212,118 +371,121 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         setVisible(dateFromFormatEl, this.plugin.settings.getDateFrom !== 'none')
       })
 
-    /*
-     Thumbnail settings
-     */
+    // Only show thumbnail and storage settings in local mode
+    if (this.plugin.settings.imageMode === 'local') {
+      /*
+       Thumbnail settings
+       */
 
-    new Setting(containerEl)
-      .setName('Thumbnails')
-      .setHeading()
-      .setDesc('Configure the locally-saved thumbnail images.')
+      new Setting(containerEl)
+        .setName('Thumbnails')
+        .setHeading()
+        .setDesc('Configure the locally-saved thumbnail images.')
 
-    new Setting(containerEl)
-      .setName('Thumbnail width')
-      .setDesc('Maximum width of the locally-saved thumbnail image in pixels')
-      .addText(text => text
-        .setPlaceholder(DEFAULT_SETTINGS.thumbnailWidth.toString())
-        .setValue(this.plugin.settings.thumbnailWidth.toString())
-        .onChange(async value => {
-          this.plugin.settings.thumbnailWidth = +value
-          await this.plugin.saveSettings()
-        }))
+      new Setting(containerEl)
+        .setName('Thumbnail width')
+        .setDesc('Maximum width of the locally-saved thumbnail image in pixels')
+        .addText(text => text
+          .setPlaceholder(DEFAULT_SETTINGS.thumbnailWidth.toString())
+          .setValue(this.plugin.settings.thumbnailWidth.toString())
+          .onChange(async value => {
+            this.plugin.settings.thumbnailWidth = +value
+            await this.plugin.saveSettings()
+          }))
 
-    new Setting(containerEl)
-      .setName('Thumbnail height')
-      .setDesc('Maximum height of the locally-saved thumbnail image in pixels')
-      .addText(text => text
-        .setPlaceholder(DEFAULT_SETTINGS.thumbnailHeight.toString())
-        .setValue(this.plugin.settings.thumbnailHeight.toString())
-        .onChange(async value => {
-          this.plugin.settings.thumbnailHeight = +value
-          await this.plugin.saveSettings()
-        }))
+      new Setting(containerEl)
+        .setName('Thumbnail height')
+        .setDesc('Maximum height of the locally-saved thumbnail image in pixels')
+        .addText(text => text
+          .setPlaceholder(DEFAULT_SETTINGS.thumbnailHeight.toString())
+          .setValue(this.plugin.settings.thumbnailHeight.toString())
+          .onChange(async value => {
+            this.plugin.settings.thumbnailHeight = +value
+            await this.plugin.saveSettings()
+          }))
 
-    let filenamePreviewEl: HTMLElement
+      let filenamePreviewEl: HTMLElement
 
-    new Setting(containerEl)
-      .setName('Image filename format')
-      .addText(text => text
-        .setPlaceholder(DEFAULT_SETTINGS.filename)
-        .setValue(this.plugin.settings.filename)
-        .onChange(async value => {
-          this.plugin.settings.filename = value.trim()
-          await this.plugin.saveSettings()
-          this.updateFilenamePreview(filenamePreviewEl, value.trim())
-        }))
-      .then(setting => {
-        setting.descEl.appendText('Filename format for saving thumbnails (')
-        setting.descEl.createEl('a', {
-          text: 'Moment.js format',
-          href: 'https://momentjs.com/docs/#/displaying/format/'
+      new Setting(containerEl)
+        .setName('Image filename format')
+        .addText(text => text
+          .setPlaceholder(DEFAULT_SETTINGS.filename)
+          .setValue(this.plugin.settings.filename)
+          .onChange(async value => {
+            this.plugin.settings.filename = value.trim()
+            await this.plugin.saveSettings()
+            this.updateFilenamePreview(filenamePreviewEl, value.trim())
+          }))
+        .then(setting => {
+          setting.descEl.appendText('Filename format for saving thumbnails (')
+          setting.descEl.createEl('a', {
+            text: 'Moment.js format',
+            href: 'https://momentjs.com/docs/#/displaying/format/'
+          })
+          setting.descEl.appendText(').')
+          setting.descEl.createEl('br')
+          setting.descEl.createEl('br')
+          setting.descEl.appendText('Preview: ')
+          filenamePreviewEl = setting.descEl.createEl('code', { cls: 'immich-filename-preview' })
+          this.updateFilenamePreview(filenamePreviewEl, this.plugin.settings.filename)
         })
-        setting.descEl.appendText(').')
-        setting.descEl.createEl('br')
-        setting.descEl.createEl('br')
-        setting.descEl.appendText('Preview: ')
-        filenamePreviewEl = setting.descEl.createEl('code', { cls: 'immich-filename-preview' })
-        this.updateFilenamePreview(filenamePreviewEl, this.plugin.settings.filename)
-      })
 
-    /*
-     Storage location settings
-     */
+      /*
+       Storage location settings
+       */
 
-    new Setting(containerEl)
-      .setName('Storage location')
-      .setHeading()
+      new Setting(containerEl)
+        .setName('Storage location')
+        .setHeading()
 
-    const locationOptionEl = new Setting(this.containerEl)
-    const locationFolderEl = new Setting(this.containerEl)
-      .setName('Thumbnail image folder')
-      .setDesc('Thumbnails will be saved to this folder')
-      .addSearch(search => {
-        new FolderSuggest(this.app, search.inputEl)
-        search.setPlaceholder('Path/for/thumbnails')
-          .setValue(this.plugin.settings.locationFolder)
-          .onChange(async value => {
-            this.plugin.settings.locationFolder = value.trim()
-            await this.plugin.saveSettings()
-          })
-      })
+      const locationOptionEl = new Setting(this.containerEl)
+      const locationFolderEl = new Setting(this.containerEl)
+        .setName('Thumbnail image folder')
+        .setDesc('Thumbnails will be saved to this folder')
+        .addSearch(search => {
+          new FolderSuggest(this.app, search.inputEl)
+          search.setPlaceholder('Path/for/thumbnails')
+            .setValue(this.plugin.settings.locationFolder)
+            .onChange(async value => {
+              this.plugin.settings.locationFolder = value.trim()
+              await this.plugin.saveSettings()
+            })
+        })
 
-    const locationSubfolderEl = new Setting(this.containerEl)
-      .setName('Subfolder name')
-      .setDesc('Subfolder within the current note\'s folder')
-      .addText(text => {
-        text
-          .setPlaceholder('Photos')
-          .setValue(this.plugin.settings.locationSubfolder)
-          .onChange(async value => {
-            this.plugin.settings.locationSubfolder = value.trim().replace(/^[\\/]+/, '').replace(/[\\/]+$/, '')
-            await this.plugin.saveSettings()
-          })
-      })
+      const locationSubfolderEl = new Setting(this.containerEl)
+        .setName('Subfolder name')
+        .setDesc('Subfolder within the current note\'s folder')
+        .addText(text => {
+          text
+            .setPlaceholder('Photos')
+            .setValue(this.plugin.settings.locationSubfolder)
+            .onChange(async value => {
+              this.plugin.settings.locationSubfolder = value.trim().replace(/^[\\/]+/, '').replace(/[\\/]+$/, '')
+              await this.plugin.saveSettings()
+            })
+        })
 
-    locationOptionEl
-      .setName('Location to save thumbnails')
-      .setDesc('Where the local thumbnail images will be saved')
-      .addDropdown(dropdown => {
-        dropdown
-          .addOption('note', 'Same folder as the note')
-          .addOption('subfolder', 'In a subfolder of the current note')
-          .addOption('specified', 'In a specific folder')
-          .setValue(this.plugin.settings.locationOption)
-          .onChange(async value => {
-            setVisible(locationFolderEl, value === 'specified')
-            setVisible(locationSubfolderEl, value === 'subfolder')
-            this.plugin.settings.locationOption = value
-            await this.plugin.saveSettings()
-          })
-      })
-      .then(() => {
-        setVisible(locationFolderEl, this.plugin.settings.locationOption === 'specified')
-        setVisible(locationSubfolderEl, this.plugin.settings.locationOption === 'subfolder')
-      })
+      locationOptionEl
+        .setName('Location to save thumbnails')
+        .setDesc('Where the local thumbnail images will be saved')
+        .addDropdown(dropdown => {
+          dropdown
+            .addOption('note', 'Same folder as the note')
+            .addOption('subfolder', 'In a subfolder of the current note')
+            .addOption('specified', 'In a specific folder')
+            .setValue(this.plugin.settings.locationOption)
+            .onChange(async value => {
+              setVisible(locationFolderEl, value === 'specified')
+              setVisible(locationSubfolderEl, value === 'subfolder')
+              this.plugin.settings.locationOption = value
+              await this.plugin.saveSettings()
+            })
+        })
+        .then(() => {
+          setVisible(locationFolderEl, this.plugin.settings.locationOption === 'specified')
+          setVisible(locationSubfolderEl, this.plugin.settings.locationOption === 'subfolder')
+        })
+    }
 
     /*
      Output settings
@@ -333,25 +495,82 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       .setName('Output format')
       .setHeading()
 
-    new Setting(containerEl)
-      .setName('Inserted Markdown')
-      .setDesc('The Markdown text inserted when adding a photo. Available variables:')
-      .addTextArea(text => text
-        .setPlaceholder(DEFAULT_SETTINGS.thumbnailMarkdown)
-        .setValue(this.plugin.settings.thumbnailMarkdown)
-        .onChange(async value => {
-          this.plugin.settings.thumbnailMarkdown = value
-          await this.plugin.saveSettings()
-        }))
-      .then(setting => {
-        const ul = setting.descEl.createEl('ul')
-        ul.createEl('li').setText('local_thumbnail_link - path to the local thumbnail')
-        ul.createEl('li').setText('immich_url - URL to the photo in Immich')
-        ul.createEl('li').setText('immich_asset_id - the Immich asset ID')
-        ul.createEl('li').setText('original_filename - original filename from Immich')
-        ul.createEl('li').setText('taken_date - date the photo was taken')
-        ul.createEl('li').setText('description - photo description from Immich')
-      })
+    const isRemoteMode = this.plugin.settings.imageMode === 'remote'
+    const vaultConfig = this.app.vault as unknown as { getConfig(key: string): unknown }
+    const useWikilinks = !vaultConfig.getConfig('useMarkdownLinks')
+
+    if (isRemoteMode) {
+      // Remote mode uses a fixed format — show info instead of editable template
+      new Setting(containerEl)
+        .setName('Inserted text format')
+        .then(setting => {
+          setting.descEl.appendText('Remote mode uses a fixed format (not customizable):')
+          setting.descEl.createEl('br')
+          // eslint-disable-next-line obsidianmd/ui/sentence-case
+          setting.descEl.createEl('code', { text: '[![immich:id](placeholder)](link)' })
+          setting.descEl.createEl('br')
+          setting.descEl.createEl('br')
+          setting.descEl.appendText('The post-processor replaces the placeholder with the actual image at render time.')
+        })
+    } else {
+      // Local/Shared mode — show editable template with presets
+      let templateInput: { setValue(value: string): unknown } | null = null
+
+      new Setting(containerEl)
+        .setName('Inserted text format')
+        .setDesc('Text inserted when adding a photo')
+        .addTextArea(text => {
+          templateInput = text
+          text
+            .setPlaceholder(DEFAULT_SETTINGS.thumbnailMarkdown)
+            .setValue(this.plugin.settings.thumbnailMarkdown)
+            .onChange(async value => {
+              this.plugin.settings.thumbnailMarkdown = value
+              await this.plugin.saveSettings()
+            })
+        })
+        .then(setting => {
+          // Preset buttons
+          const btnContainer = setting.descEl.createDiv({ cls: 'immich-picker-preset-buttons' })
+          btnContainer.createEl('span', { text: 'Presets: ' })
+
+          const presets = [
+            { label: 'Markdown', value: '[![{{display_width}}]({{local_thumbnail_link}})]({{immich_url}}) ', recommended: !useWikilinks },
+            { label: 'Wikilink', value: '![[{{local_thumbnail_link}}{{display_width}}]]', recommended: useWikilinks },
+            { label: 'Image only', value: '![{{display_width}}]({{local_thumbnail_link}})', recommended: false }
+          ]
+
+          for (const preset of presets) {
+            const btn = btnContainer.createEl('button', {
+              text: preset.label + (preset.recommended ? ' *' : ''),
+              cls: 'immich-picker-preset-btn'
+            })
+            btn.addEventListener('click', async () => {
+              this.plugin.settings.thumbnailMarkdown = preset.value
+              await this.plugin.saveSettings()
+              templateInput?.setValue(preset.value)
+            })
+          }
+
+          btnContainer.createEl('br')
+          btnContainer.createEl('small', { text: '* recommended based on your vault link settings' })
+
+          // Variable reference
+          setting.descEl.createEl('br')
+          setting.descEl.appendText('Available variables:')
+          const ul = setting.descEl.createEl('ul')
+          ul.createEl('li').setText('local_thumbnail_link - path to the local thumbnail')
+          // eslint-disable-next-line obsidianmd/ui/sentence-case
+          ul.createEl('li').setText('immich_thumbnail_url - the thumbnail link')
+          ul.createEl('li').setText('immich_url - link to the photo in the server')
+          ul.createEl('li').setText('immich_asset_id - the asset id')
+          ul.createEl('li').setText('original_filename - original filename')
+          ul.createEl('li').setText('taken_date - date the photo was taken')
+          ul.createEl('li').setText('description - photo description')
+          // eslint-disable-next-line obsidianmd/ui/sentence-case
+          ul.createEl('li').setText('display_width - image width from settings (e.g. |400)')
+        })
+    }
 
     new Setting(containerEl)
       .setName('Convert pasted Immich links')
@@ -366,6 +585,168 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         setting.descEl.createEl('code', { text: 'https://immich.example.com/photos/abc-123' })
         setting.descEl.appendText('), automatically download the thumbnail and insert it as markdown instead of pasting the plain URL.')
       })
+
+    /*
+     Credential sharing
+     */
+
+    new Setting(containerEl)
+      .setName('Credential sharing')
+      .setHeading()
+      .setDesc('Share credentials with other vaults or devices.')
+
+    let shareDuration = 300000
+
+    const methodSetting = new Setting(containerEl)
+      .setName('Sharing method')
+    const methodBtnContainer = methodSetting.controlEl.createDiv({ cls: 'immich-share-method-btns' })
+    const methods = [
+      { key: 'vault' as const, label: 'Vault sync' },
+      { key: 'string' as const, label: 'Share string' }
+    ]
+    for (const method of methods) {
+      const btn = methodBtnContainer.createEl('button', {
+        text: method.label,
+        cls: 'immich-share-method-btn' + (this.shareMethod === method.key ? ' is-active' : '')
+      })
+      btn.addEventListener('click', e => {
+        debugLog(`Share method button clicked: ${method.key} (event type: ${e.type}, target: ${(e.target as HTMLElement)?.tagName})`)
+        this.shareMethod = method.key
+        methodBtnContainer.querySelectorAll('.immich-share-method-btn').forEach(b => b.removeClass('is-active'))
+        btn.addClass('is-active')
+        debugLog(`Share method set to: ${this.shareMethod}`)
+      })
+      btn.addEventListener('touchend', e => {
+        debugLog(`Share method touchend: ${method.key}`)
+        e.preventDefault()
+        btn.click()
+      })
+    }
+    methodSetting.descEl.appendText('Vault sync: credentials sync with your vault. Share string: copy manually.')
+
+    new Setting(containerEl)
+      .setName('Duration')
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption('300000', '5 minutes')
+          .addOption('1800000', '30 minutes')
+          .addOption('3600000', '1 hour')
+          .addOption('86400000', '24 hours')
+          .setValue('300000')
+          .onChange(value => { shareDuration = parseInt(value, 10) })
+      })
+      .addButton(btn => btn
+        .setButtonText('Share')
+        .setCta()
+        .onClick(async () => {
+          const apiKey = await this.plugin.getApiKey()
+          if (!this.plugin.settings.serverUrl || !apiKey) {
+            new Notice('Configure server and credentials first')
+            return
+          }
+          if (this.shareMethod === 'vault') {
+            const pin = await createVaultShare(this.plugin, this.plugin.settings.serverUrl, apiKey, shareDuration)
+            new Notice(`Sharing via vault sync! PIN: ${pin}`, 30000)
+          } else {
+            const result = await createShareString(this.plugin.settings.serverUrl, apiKey, shareDuration)
+            this.lastShareResult = result
+            if (this.shareResultTimer) window.clearTimeout(this.shareResultTimer)
+            this.shareResultTimer = window.setTimeout(() => {
+              this.lastShareResult = null
+              this.shareResultTimer = null
+              this.display()
+            }, shareDuration)
+            try { await navigator.clipboard.writeText(result.shareString) } catch { /* clipboard may not work on mobile */ }
+            new Notice(`PIN: ${result.pin}`, 30000)
+            this.display()
+          }
+        }))
+
+    // Show last share result if available
+    if (this.lastShareResult) {
+      const resultContainer = containerEl.createDiv({ cls: 'immich-share-result' })
+      resultContainer.createEl('p', { text: `PIN: ${this.lastShareResult.pin}`, cls: 'immich-share-pin-display' })
+      const resultTextarea = resultContainer.createEl('textarea', {
+        cls: 'immich-share-textarea',
+        attr: { rows: '3', readonly: '' }
+      })
+      resultTextarea.value = this.lastShareResult.shareString
+      resultTextarea.addEventListener('click', () => { resultTextarea.select() })
+      resultContainer.createEl('small', { text: 'Tap the text above to select, then copy. Share the string and pin separately.' })
+    }
+
+    // Vault sync import — show if shared creds detected
+    void hasVaultShare(this.plugin).then(available => {
+      if (available) {
+        new Setting(containerEl)
+          .setName('Shared credentials available')
+          .setDesc('Enter the pin to import')
+          .addText(text => text.setPlaceholder('4-digit pin'))
+          .addButton(btn => btn
+            .setButtonText('Import')
+            .setCta()
+            .onClick(async () => {
+              const input = btn.buttonEl.parentElement?.querySelector('input')
+              const pin = input?.value?.trim()
+              if (!pin || pin.length !== 4) {
+                new Notice('Enter the 4-digit pin')
+                return
+              }
+              const result = await importVaultShare(this.plugin, pin)
+              if (result) {
+                await this.plugin.setApiKey(result.apiKey)
+                this.plugin.settings.serverUrl = result.serverUrl
+                await this.plugin.saveSettings()
+                new Notice('Credentials imported!')
+                this.display()
+              } else {
+                new Notice('Invalid pin or credentials expired')
+              }
+            }))
+      }
+    })
+
+    // Share string import — always visible
+    new Setting(containerEl)
+      .setName('Import from share string')
+      .setHeading()
+
+    const importContainer = containerEl.createDiv({ cls: 'immich-share-import' })
+
+    const shareTextarea = importContainer.createEl('textarea', {
+      cls: 'immich-share-textarea',
+      attr: { placeholder: 'Paste share string here', rows: '3' }
+    })
+
+    const importRow = importContainer.createDiv({ cls: 'immich-share-import-row' })
+    const pinInput = importRow.createEl('input', {
+      cls: 'immich-share-pin',
+      type: 'text',
+      attr: { placeholder: '4-digit pin', maxlength: '4' }
+    })
+    const importBtn = importRow.createEl('button', {
+      text: 'Import',
+      cls: 'mod-cta'
+    })
+    importBtn.addEventListener('click', async () => {
+      const str = shareTextarea.value?.trim()
+      const pin = pinInput.value?.trim()
+      if (!str || !pin || pin.length !== 4) {
+        new Notice('Paste the share string and enter the 4-digit pin')
+        return
+      }
+      const result = await importShareString(str, pin)
+      if (result) {
+        await this.plugin.setApiKey(result.apiKey)
+        this.plugin.settings.serverUrl = result.serverUrl
+        await this.plugin.saveSettings()
+        new Notice('Credentials imported!')
+        this.display()
+      } else {
+        new Notice('Invalid share string, wrong pin, or expired')
+      }
+    })
+
   }
 
   updateFilenamePreview (el: HTMLElement, format: string): void {
