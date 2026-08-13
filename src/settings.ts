@@ -469,11 +469,17 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         .then(setting => {
           setting.descEl.appendText('Remote mode uses a fixed format (not customizable):')
           setting.descEl.createEl('br')
-          // eslint-disable-next-line obsidianmd/ui/sentence-case
-          setting.descEl.createEl('code', { text: '[![immich:id](placeholder)](link)' })
-          setting.descEl.createEl('br')
-          setting.descEl.createEl('br')
-          setting.descEl.appendText('The post-processor replaces the placeholder with the actual image at render time.')
+          if (this.plugin.settings.remoteFormat === 'code-block') {
+            setting.descEl.createEl('code', { text: '```immich <asset id> ```' })
+            setting.descEl.createEl('br')
+            setting.descEl.createEl('br')
+            setting.descEl.appendText('The code block processor fetches the image and renders it at read time.')
+          } else {
+            setting.descEl.createEl('code', { text: '![](<server>/api/assets/<asset id>/thumbnail)' })
+            setting.descEl.createEl('br')
+            setting.descEl.createEl('br')
+            setting.descEl.appendText('The plugin re-fetches this URL with your API key when rendering, since Obsidian cannot send the key itself.')
+          }
         })
     } else {
       // Local/Shared mode — show editable template with presets
