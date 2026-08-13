@@ -1,4 +1,4 @@
-import { App, moment, Notice, Platform, PluginSettingTab, SettingDefinitionItem, SettingGroupItem } from 'obsidian'
+import { App, Notice, Platform, PluginSettingTab, SettingDefinitionItem, SettingGroupItem } from 'obsidian'
 import { clearImmichBlobCache } from './postProcessor'
 import ImmichPicker from './main'
 
@@ -527,7 +527,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       return
     }
     try {
-      const preview = moment().format(format)
+      const preview = window.moment().format(format)
       el.setText(preview)
     } catch {
       el.setText('Invalid format')

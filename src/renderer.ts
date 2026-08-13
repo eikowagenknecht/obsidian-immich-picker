@@ -45,7 +45,7 @@ export class GridView {
         img.assetId = asset.id
         img.immichUrl = api.getAssetUrl(asset.id)
         img.originalFilename = asset.originalFileName
-        img.creationTime = moment(asset.fileCreatedAt)
+        img.creationTime = window.moment(asset.fileCreatedAt)
         img.filename = img.creationTime.format(settings.filename)
         img.description = asset.description || ''
         img.onclick = onclick
