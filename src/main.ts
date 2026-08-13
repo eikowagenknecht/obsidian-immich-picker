@@ -369,11 +369,7 @@ export default class ImmichPicker extends Plugin {
     const serverUrlEscaped = this.settings.serverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const patterns = [
       /```immich\n([a-f0-9-]+)\n```/gi,
-      new RegExp(`!\\[\\]\\(${serverUrlEscaped}/api/assets/([a-f0-9-]+)/thumbnail[^)]*\\)`, 'gi'),
-      /<img data-immich-id="([a-f0-9-]+)"[^>]*\/?>/gi,
-      /!\[immich:([a-f0-9-]+)\]\(data:image\/[^)]+\)/gi,
-      /!\[\]\(immich:\/\/([a-f0-9-]+)\)/gi,
-      /!\[immich:([a-f0-9-]+)\]\([^)]*\)/gi
+      new RegExp(`!\\[\\]\\(${serverUrlEscaped}/api/assets/([a-f0-9-]+)/thumbnail[^)]*\\)`, 'gi')
     ]
     const allMatches: { fullMatch: string, assetId: string }[] = []
     for (const pattern of patterns) {

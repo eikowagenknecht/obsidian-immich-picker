@@ -43,35 +43,17 @@ export function registerImmichPostProcessor (plugin: ImmichPicker): void {
     const images = el.querySelectorAll('img')
     const serverUrl = plugin.settings.serverUrl
 
+    if (!serverUrl) return
+
     for (const img of Array.from(images)) {
       if (img.hasClass('immich-remote-image')) continue
 
       const src = img.getAttribute('src') || ''
-      const alt = img.getAttribute('alt') || ''
+      if (!src.includes(serverUrl)) continue
 
-      if (serverUrl && src.includes(serverUrl) && src.includes('/api/assets/')) {
-        const urlMatch = src.match(/\/api\/assets\/([a-f0-9-]+)\/thumbnail/i)
-        if (urlMatch) {
-          await replaceImgSrc(plugin, img, urlMatch[1])
-          continue
-        }
-      }
-
-      const dataId = img.getAttribute('data-immich-id')
-      if (dataId && dataId.match(/^[a-f0-9-]+$/i)) {
-        await replaceImgSrc(plugin, img, dataId)
-        continue
-      }
-
-      const altMatch = alt.match(/^immich:([a-f0-9-]+)$/i)
-      if (altMatch) {
-        await replaceImgSrc(plugin, img, altMatch[1])
-        continue
-      }
-
-      const srcMatch = src.match(/immich:\/\/([a-f0-9-]+)/i)
-      if (srcMatch) {
-        await replaceImgSrc(plugin, img, srcMatch[1])
+      const urlMatch = src.match(/\/api\/assets\/([a-f0-9-]+)\/thumbnail/i)
+      if (urlMatch) {
+        await replaceImgSrc(plugin, img, urlMatch[1])
       }
     }
   })
