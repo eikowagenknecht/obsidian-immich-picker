@@ -60,50 +60,57 @@ export function registerImmichPostProcessor (plugin: ImmichPicker): void {
 
   // Live Preview: ViewPlugin that replaces img src with authenticated blob URLs
   // Obsidian's native renderer creates .image-embed — we just authenticate the image
-  if (plugin.settings.renderInEditMode) {
-    const livePreviewPlugin = ViewPlugin.fromClass(
-      class {
-        debounceTimer: number | null = null
+  //
+  // Registered unconditionally and gated at run time on renderInEditMode:
+  // editor extensions are fixed at load, so deciding here would leave the
+  // setting doing nothing until the plugin was reloaded.
+  const livePreviewPlugin = ViewPlugin.fromClass(
+    class {
+      debounceTimer: number | null = null
 
-        constructor (view: EditorView) {
-          this.scheduleProcess(view)
-        }
+      constructor (view: EditorView) {
+        this.scheduleProcess(view)
+      }
 
-        processImages (view: EditorView) {
-          const images = view.dom.querySelectorAll('.image-embed img:not(.immich-remote-image)')
+      processImages (view: EditorView) {
+        const serverUrl = plugin.settings.serverUrl
+        if (!plugin.settings.renderInEditMode || !serverUrl) return
 
-          for (const img of Array.from(images)) {
-            const src = img.getAttribute('src') || ''
-            if (src.includes('/api/assets/') && src.includes('/thumbnail')) {
-              const urlMatch = src.match(/\/api\/assets\/([a-f0-9-]+)\/thumbnail/i)
-              if (urlMatch) {
-                void replaceImgSrc(plugin, img as HTMLImageElement, urlMatch[1])
-              }
-            }
+        const images = view.dom.querySelectorAll('.image-embed img:not(.immich-remote-image)')
+
+        for (const img of Array.from(images)) {
+          const src = img.getAttribute('src') || ''
+          // Scoped to the configured server, so an unrelated image that
+          // happens to sit under /api/assets/ is left alone.
+          if (!src.includes(serverUrl)) continue
+
+          const urlMatch = src.match(/\/api\/assets\/([a-f0-9-]+)\/thumbnail/i)
+          if (urlMatch) {
+            void replaceImgSrc(plugin, img as HTMLImageElement, urlMatch[1])
           }
-        }
-
-        scheduleProcess (view: EditorView) {
-          if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
-          this.debounceTimer = window.setTimeout(() => {
-            this.processImages(view)
-          }, 200)
-        }
-
-        update (update: ViewUpdate) {
-          if (update.docChanged || update.viewportChanged || update.selectionSet) {
-            this.scheduleProcess(update.view)
-          }
-        }
-
-        destroy () {
-          if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
         }
       }
-    )
 
-    plugin.registerEditorExtension(livePreviewPlugin)
-  }
+      scheduleProcess (view: EditorView) {
+        if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
+        this.debounceTimer = window.setTimeout(() => {
+          this.processImages(view)
+        }, 200)
+      }
+
+      update (update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged || update.selectionSet) {
+          this.scheduleProcess(update.view)
+        }
+      }
+
+      destroy () {
+        if (this.debounceTimer) window.clearTimeout(this.debounceTimer)
+      }
+    }
+  )
+
+  plugin.registerEditorExtension(livePreviewPlugin)
 }
 
 // --- Helpers ---
