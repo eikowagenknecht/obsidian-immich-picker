@@ -11,6 +11,43 @@ interface ScanResult {
   matches: { fullMatch: string, assetId: string }[];
 }
 
+/**
+ * Confirms creation of Immich shared links, which are publicly readable and
+ * have no expiry. Resolves false unless the user explicitly accepts.
+ */
+function confirmPublicLinks (app: App, count: number, scopeLabel: string): Promise<boolean> {
+  return new Promise(resolve => {
+    const modal = new Modal(app)
+    modal.setTitle('Create public links?')
+
+    const plural = count === 1 ? '' : 's'
+    modal.contentEl.createEl('p', {
+      text: `This creates ${count} Immich shared link${plural} for the images in ${scopeLabel}.`
+    })
+    modal.contentEl.createEl('p', {
+      text: `Anyone with the URL can view ${count === 1 ? 'that photo' : 'those photos'} without logging in to Immich, and the links do not expire. Undoing this means deleting each link in Immich by hand.`
+    })
+
+    let confirmed = false
+    const buttons = modal.contentEl.createDiv({ cls: 'immich-conversion-buttons' })
+
+    const cancelBtn = buttons.createEl('button', { text: 'Cancel' })
+    cancelBtn.addEventListener('click', () => { modal.close() })
+
+    const confirmBtn = buttons.createEl('button', {
+      text: `Create ${count} public link${plural}`,
+      cls: 'mod-warning'
+    })
+    confirmBtn.addEventListener('click', () => {
+      confirmed = true
+      modal.close()
+    })
+
+    modal.onClose = () => { resolve(confirmed) }
+    modal.open()
+  })
+}
+
 export class ConversionModal extends Modal {
   plugin: ImmichPicker
 
@@ -196,8 +233,24 @@ export class ConversionModal extends Modal {
     this.render()
   }
 
+  scopeLabel (): string {
+    switch (this.selectedScope) {
+      case 'note': return 'this note'
+      case 'folder': return `the folder "${this.selectedFolder}"`
+      case 'tag': return `notes tagged ${this.selectedTag}`
+      case 'vault': return 'your entire vault'
+      default: return 'the selected scope'
+    }
+  }
+
   async convert (): Promise<void> {
     if (this.scanResults.length === 0) return
+
+    // Shared links are public and permanent — never create them in bulk silently.
+    if (this.targetFormat === 'shared') {
+      const confirmed = await confirmPublicLinks(this.app, this.totalImages, this.scopeLabel())
+      if (!confirmed) return
+    }
 
     const loadingNotice = new Notice(`Converting ${this.totalImages} images...`, 0)
     let converted = 0
