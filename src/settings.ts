@@ -1,4 +1,4 @@
-import { App, Modal, moment, Notice, Platform, PluginSettingTab, Setting } from 'obsidian'
+import { App, moment, Notice, Platform, PluginSettingTab, Setting } from 'obsidian'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 import ImmichPicker from './main'
 
@@ -145,46 +145,14 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     if (Platform.isMobile) {
       new Setting(containerEl)
         .setName('Mobile quick access')
-        .setDesc('Ways to quickly insert photos on mobile')
-        .addButton(btn => btn
-          .setButtonText('How to set up')
-          .onClick(() => {
-            const modal = new Modal(this.app)
-            modal.setTitle('Quick access on mobile')
-
-            const content = modal.contentEl
-
-            content.createEl('p', { text: 'Two ways to quickly insert photos on mobile:' })
-
-            content.createEl('strong').textContent = '1. Menu icon (already set up)'
-            const ribbon1 = content.createEl('p')
-            ribbon1.appendText('Tap the \u2261 menu at the bottom right \u2014 the Immich camera icon is already there.')
-            const ribbon2 = content.createEl('p')
-            ribbon2.appendText('To reorder: ')
-            // eslint-disable-next-line obsidianmd/ui/sentence-case
-            ribbon2.createEl('strong').textContent = 'Settings \u2192 Appearance \u2192 Ribbon menu'
-
-            content.createEl('strong').textContent = '2. Keyboard toolbar (optional)'
-            const toolbar1 = content.createEl('p')
-            toolbar1.appendText('Add the command to the bar above your keyboard when editing:')
-            const toolbar2 = content.createEl('p')
-            toolbar2.appendText('Go to ')
-            // eslint-disable-next-line obsidianmd/ui/sentence-case
-            toolbar2.createEl('strong').textContent = 'Settings \u2192 Toolbar'
-            toolbar2.appendText(', tap +, search "Immich"')
-
-            const tip = content.createEl('p')
-            tip.createEl('small', { text: 'For more customization, try the ' })
-            const tipLink = tip.createEl('small')
-            tipLink.createEl('a', { text: 'Commander', href: 'obsidian://show-plugin?id=cmdr' })
-            tipLink.appendText(' plugin.')
-
-            const btnRow = content.createDiv({ attr: { style: 'display:flex;gap:8px;margin-top:12px;' } })
-            const okBtn = btnRow.createEl('button', { text: 'Got it', cls: 'mod-cta' })
-            okBtn.addEventListener('click', () => { modal.close() })
-
-            modal.open()
-          }))
+        .then(setting => {
+          setting.descEl.appendText('The Immich icon is already in the \u2261 menu. To reach it from the keyboard toolbar instead, see ')
+          setting.descEl.createEl('a', {
+            text: 'Mobile',
+            href: 'https://github.com/eikowagenknecht/obsidian-immich-picker#mobile'
+          })
+          setting.descEl.appendText(' in the README.')
+        })
     }
 
     /*
