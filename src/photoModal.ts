@@ -556,6 +556,9 @@ export class ImmichPickerModal extends Modal {
       }
 
       let insertedText = ''
+      // Two photos taken in the same second format to the same filename, so
+      // names have to be reserved across the batch, not just checked on disk.
+      const reservedPaths = new Set<string>()
 
       for (let i = 0; i < this.currentAlbumAssets.length; i++) {
         const asset = this.currentAlbumAssets[i]
@@ -584,7 +587,7 @@ export class ImmichPickerModal extends Modal {
           })
         } else {
           const filename = creationTime.format(this.plugin.settings.filename)
-          const { linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, filename)
+          const { linkPath, savePath } = await this.plugin.computeFreeThumbnailPaths(noteFolder, filename, reservedPaths)
 
           await this.plugin.saveThumbnailToVault(asset.id, savePath)
 
@@ -653,7 +656,7 @@ export class ImmichPickerModal extends Modal {
         })
       } else {
         const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
-        const { thumbnailFolder, linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, thumbnailImage.filename)
+        const { thumbnailFolder, linkPath, savePath } = await this.plugin.computeFreeThumbnailPaths(noteFolder, thumbnailImage.filename)
         await this.plugin.ensureFolderExists(thumbnailFolder)
         await this.plugin.saveThumbnailToVault(thumbnailImage.assetId, savePath)
 

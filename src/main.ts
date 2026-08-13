@@ -303,7 +303,7 @@ export default class ImmichPicker extends Plugin {
             const creationTime = moment()
             const filename = creationTime.format(this.settings.filename)
 
-            const { thumbnailFolder, linkPath, savePath } = this.computeThumbnailPaths(noteFolder, filename)
+            const { thumbnailFolder, linkPath, savePath } = await this.computeFreeThumbnailPaths(noteFolder, filename)
             await this.ensureFolderExists(thumbnailFolder)
             await this.saveThumbnailToVault(assetId, savePath)
 
@@ -614,6 +614,9 @@ export default class ImmichPicker extends Plugin {
     try {
       const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
       let updatedContent = content
+      // Every image here formats to the same filename, so names have to be
+      // reserved as they are handed out rather than only checked against disk.
+      const reservedPaths = new Set<string>()
 
       for (let i = 0; i < allMatches.length; i++) {
         const { fullMatch, assetId } = allMatches[i]
@@ -621,7 +624,7 @@ export default class ImmichPicker extends Plugin {
 
         const creationTime = moment()
         const filename = creationTime.format(this.settings.filename)
-        const { thumbnailFolder, linkPath, savePath } = this.computeThumbnailPaths(noteFolder, filename)
+        const { thumbnailFolder, linkPath, savePath } = await this.computeFreeThumbnailPaths(noteFolder, filename, reservedPaths)
         await this.ensureFolderExists(thumbnailFolder)
         await this.saveThumbnailToVault(assetId, savePath)
 
