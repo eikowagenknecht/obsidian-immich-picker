@@ -116,6 +116,8 @@ To move existing images from one mode to another, run "Convert Immich images" fr
 
 Converting to shared links asks for confirmation first, since those URLs are public and do not expire.
 
+Conversion needs the note to record which Immich asset an image came from. Remote and shared images always carry it in their URL. Local images carry it only if your inserted text format includes `{{immich_url}}` or `{{immich_thumbnail_url}}` — the default and the "Markdown" preset do, the "Wikilink" and "Image only" presets do not. Images inserted with those two are skipped by the scan, because nothing in the note says which photo they are.
+
 ### Mobile
 
 Everything works on mobile. The plugin adds a ribbon icon, reachable from the hamburger menu. To put it on the toolbar above the keyboard instead, go to Settings → Toolbar, tap +, and search for "Immich".

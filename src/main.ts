@@ -388,27 +388,63 @@ export default class ImmichPicker extends Plugin {
   // --- Finding existing references ---
 
   /**
-   * Finds all remote Immich image references (any format).
+   * Finds all Immich image references in note content.
+   *
+   * Matching is anchored on the asset id, not on an exact output format: find
+   * the markdown constructs that can carry an image, then keep the ones that
+   * mention an asset on the configured server. That way a reference stays
+   * findable whatever the display width or the user's template did to the
+   * text around it.
+   *
+   * A reference is only convertible if the note records the asset id
+   * somewhere — as a thumbnail URL, or as a link to the photo page, which is
+   * what {{immich_url}} in the default local template provides. Local images
+   * inserted from a template with neither are not matched, because nothing in
+   * the note says which Immich asset they came from.
+   *
    * Returns one entry per occurrence, sorted by position, with the source
    * range so callers can rewrite each occurrence independently.
    */
   findRemoteReferences (content: string): ImmichReference[] {
-    const serverUrlEscaped = this.settings.serverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const patterns = [
-      /```immich\n([a-f0-9-]+)\n```/gi,
-      new RegExp(`!\\[\\]\\(${serverUrlEscaped}/api/assets/([a-f0-9-]+)/thumbnail[^)]*\\)`, 'gi')
+    const serverUrl = this.settings.serverUrl
+    if (!serverUrl) return []
+
+    const escaped = serverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const ASSET_ID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+    // /api/assets/<id>/thumbnail in remote and shared mode, /photos/<id> in
+    // the link half of the default local and shared templates.
+    const idInUrl = new RegExp(`${escaped}/(?:api/assets|photos)/(${ASSET_ID})`, 'i')
+
+    // Widest construct first: a linked image has to claim the whole
+    // [![](thumb)](photo) before the inner ![](thumb) is considered.
+    const constructs = [
+      /\[!\[[^\]]*\]\([^)\n]*\)\]\([^)\n]*\)/g,
+      /!\[[^\]]*\]\([^)\n]*\)/g
     ]
+
     const refs: ImmichReference[] = []
-    for (const pattern of patterns) {
+    const claimed: { start: number, end: number }[] = []
+
+    const add = (start: number, end: number, text: string, assetId: string) => {
+      if (claimed.some(c => start < c.end && end > c.start)) return
+      claimed.push({ start, end })
+      refs.push({ start, end, text, assetId })
+    }
+
+    // Code blocks carry the bare id on its own line, alongside optional
+    // directives such as `width=400`.
+    for (const match of content.matchAll(/```immich\r?\n[\s\S]*?```/g)) {
+      const id = match[0].match(new RegExp(`^\\s*(${ASSET_ID})\\s*$`, 'im'))
+      if (id) add(match.index, match.index + match[0].length, match[0], id[1])
+    }
+
+    for (const pattern of constructs) {
       for (const match of content.matchAll(pattern)) {
-        refs.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          text: match[0],
-          assetId: match[1]
-        })
+        const id = match[0].match(idInUrl)
+        if (id) add(match.index, match.index + match[0].length, match[0], id[1])
       }
     }
+
     return refs.sort((a, b) => a.start - b.start)
   }
 
