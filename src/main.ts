@@ -75,32 +75,6 @@ export default class ImmichPicker extends Plugin {
       }
     })
 
-    this.addCommand({
-      id: 'convert-remote-format',
-      name: 'Convert remote images to current format (current note)',
-      icon: 'refresh-cw',
-      editorCallback: async (editor: Editor, view: MarkdownView) => {
-        if (!this.settings.serverUrl) {
-          new Notice('Please configure Immich server URL in settings')
-          return
-        }
-        await this.convertRemoteFormat(editor)
-      }
-    })
-
-    this.addCommand({
-      id: 'convert-remote-to-local',
-      name: 'Convert remote images to local thumbnails (current note)',
-      icon: 'download',
-      editorCallback: async (editor: Editor, view: MarkdownView) => {
-        if (!this.settings.serverUrl || !this.cachedApiKey) {
-          new Notice('Please configure Immich server URL and API key in settings')
-          return
-        }
-        await this.convertRemoteToLocal(editor, view)
-      }
-    })
-
     // Register paste handler for Immich URL conversion
     this.registerEvent(
       this.app.workspace.on('editor-paste', async (evt: ClipboardEvent, editor: Editor, view: MarkdownView) => {
@@ -386,7 +360,7 @@ export default class ImmichPicker extends Plugin {
     })
   }
 
-  // --- Convert between remote formats ---
+  // --- Finding existing references ---
 
   /**
    * Finds all remote Immich image references (any format) and returns matches with asset IDs.
@@ -410,77 +384,6 @@ export default class ImmichPicker extends Plugin {
       }
     }
     return allMatches
-  }
-
-  async convertRemoteFormat (editor: Editor): Promise<void> {
-    const content = editor.getValue()
-    const matches = this.findRemoteReferences(content)
-
-    if (matches.length === 0) {
-      new Notice('No remote Immich images found in this note')
-      return
-    }
-
-    let updatedContent = content
-    for (const { fullMatch, assetId } of matches) {
-      const newMarkdown = this.generateRemoteMarkdown(assetId)
-      updatedContent = updatedContent.replace(fullMatch, newMarkdown.trim())
-    }
-
-    editor.setValue(updatedContent)
-    new Notice(`Converted ${matches.length} images to ${this.settings.remoteFormat} format`)
-  }
-
-  // --- Convert remote to local ---
-
-  async convertRemoteToLocal (editor: Editor, view: MarkdownView): Promise<void> {
-    const noteFile = view.file
-    if (!noteFile) {
-      new Notice('No active note')
-      return
-    }
-
-    const content = editor.getValue()
-    const allMatches = this.findRemoteReferences(content)
-
-    if (allMatches.length === 0) {
-      new Notice('No remote Immich images found in this note')
-      return
-    }
-
-    const loadingNotice = new Notice(`Converting ${allMatches.length} remote images to local...`, 0)
-
-    try {
-      const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
-      let updatedContent = content
-      // Every image here formats to the same filename, so names have to be
-      // reserved as they are handed out rather than only checked against disk.
-      const reservedPaths = new Set<string>()
-
-      for (let i = 0; i < allMatches.length; i++) {
-        const { fullMatch, assetId } = allMatches[i]
-        loadingNotice.setMessage(`Converting image ${i + 1}/${allMatches.length}...`)
-
-        const creationTime = moment()
-        const filename = creationTime.format(this.settings.filename)
-        const { thumbnailFolder, linkPath, savePath } = await this.computeFreeThumbnailPaths(noteFolder, filename, reservedPaths)
-        await this.ensureFolderExists(thumbnailFolder)
-        await this.saveThumbnailToVault(assetId, savePath)
-
-        // Replace the remote image markdown with local path, respecting vault link format
-        const useWikilinks = !(this.app.vault as unknown as { getConfig(key: string): unknown }).getConfig('useMarkdownLinks')
-        const localImage = useWikilinks ? `![[${linkPath}]]` : `![](${linkPath})`
-        updatedContent = updatedContent.replace(fullMatch, localImage)
-      }
-
-      editor.setValue(updatedContent)
-      loadingNotice.hide()
-      new Notice(`Converted ${allMatches.length} images to local thumbnails`)
-    } catch (e) {
-      loadingNotice.hide()
-      console.error('Failed to convert remote images:', e)
-      new Notice('Failed to convert images: ' + (e as Error).message)
-    }
   }
 
   getNoteDate (file: TFile): moment.Moment | null {

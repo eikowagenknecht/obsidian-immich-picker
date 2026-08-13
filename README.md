@@ -116,8 +116,6 @@ To move existing images from one mode to another, run "Convert Immich images" fr
 
 Converting to shared links asks for confirmation first, since those URLs are public and do not expire.
 
-There are also two commands that act on the current note only: "Convert remote images to current format" and "Convert remote images to local thumbnails".
-
 ### Mobile
 
 Everything works on mobile. The plugin adds a ribbon icon, reachable from the hamburger menu. To put it on the toolbar above the keyboard instead, go to Settings → Toolbar, tap +, and search for "Immich".
