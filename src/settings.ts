@@ -1,8 +1,6 @@
 import { App, Modal, moment, Notice, Platform, PluginSettingTab, Setting } from 'obsidian'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 import ImmichPicker from './main'
-import { createVaultShare, importVaultShare, hasVaultShare, createShareString, importShareString } from './credentialSharing'
-import { debugLog } from './debugLog'
 
 export type GetDateFromOption = 'none' | 'title' | 'frontmatter';
 export type RemoteFormatOption = 'server-url' | 'code-block';
@@ -55,9 +53,6 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
 
 export class ImmichPickerSettingTab extends PluginSettingTab {
   plugin: ImmichPicker
-  shareMethod: 'vault' | 'string' = 'vault'
-  lastShareResult: { pin: string, shareString: string } | null = null
-  shareResultTimer: number | null = null
 
   constructor (app: App, plugin: ImmichPicker) {
     super(app, plugin)
@@ -585,168 +580,6 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         setting.descEl.createEl('code', { text: 'https://immich.example.com/photos/abc-123' })
         setting.descEl.appendText('), automatically download the thumbnail and insert it as markdown instead of pasting the plain URL.')
       })
-
-    /*
-     Credential sharing
-     */
-
-    new Setting(containerEl)
-      .setName('Credential sharing')
-      .setHeading()
-      .setDesc('Share credentials with other vaults or devices.')
-
-    let shareDuration = 300000
-
-    const methodSetting = new Setting(containerEl)
-      .setName('Sharing method')
-    const methodBtnContainer = methodSetting.controlEl.createDiv({ cls: 'immich-share-method-btns' })
-    const methods = [
-      { key: 'vault' as const, label: 'Vault sync' },
-      { key: 'string' as const, label: 'Share string' }
-    ]
-    for (const method of methods) {
-      const btn = methodBtnContainer.createEl('button', {
-        text: method.label,
-        cls: 'immich-share-method-btn' + (this.shareMethod === method.key ? ' is-active' : '')
-      })
-      btn.addEventListener('click', e => {
-        debugLog(`Share method button clicked: ${method.key} (event type: ${e.type}, target: ${(e.target as HTMLElement)?.tagName})`)
-        this.shareMethod = method.key
-        methodBtnContainer.querySelectorAll('.immich-share-method-btn').forEach(b => b.removeClass('is-active'))
-        btn.addClass('is-active')
-        debugLog(`Share method set to: ${this.shareMethod}`)
-      })
-      btn.addEventListener('touchend', e => {
-        debugLog(`Share method touchend: ${method.key}`)
-        e.preventDefault()
-        btn.click()
-      })
-    }
-    methodSetting.descEl.appendText('Vault sync: credentials sync with your vault. Share string: copy manually.')
-
-    new Setting(containerEl)
-      .setName('Duration')
-      .addDropdown(dropdown => {
-        dropdown
-          .addOption('300000', '5 minutes')
-          .addOption('1800000', '30 minutes')
-          .addOption('3600000', '1 hour')
-          .addOption('86400000', '24 hours')
-          .setValue('300000')
-          .onChange(value => { shareDuration = parseInt(value, 10) })
-      })
-      .addButton(btn => btn
-        .setButtonText('Share')
-        .setCta()
-        .onClick(async () => {
-          const apiKey = await this.plugin.getApiKey()
-          if (!this.plugin.settings.serverUrl || !apiKey) {
-            new Notice('Configure server and credentials first')
-            return
-          }
-          if (this.shareMethod === 'vault') {
-            const pin = await createVaultShare(this.plugin, this.plugin.settings.serverUrl, apiKey, shareDuration)
-            new Notice(`Sharing via vault sync! PIN: ${pin}`, 30000)
-          } else {
-            const result = await createShareString(this.plugin.settings.serverUrl, apiKey, shareDuration)
-            this.lastShareResult = result
-            if (this.shareResultTimer) window.clearTimeout(this.shareResultTimer)
-            this.shareResultTimer = window.setTimeout(() => {
-              this.lastShareResult = null
-              this.shareResultTimer = null
-              this.display()
-            }, shareDuration)
-            try { await navigator.clipboard.writeText(result.shareString) } catch { /* clipboard may not work on mobile */ }
-            new Notice(`PIN: ${result.pin}`, 30000)
-            this.display()
-          }
-        }))
-
-    // Show last share result if available
-    if (this.lastShareResult) {
-      const resultContainer = containerEl.createDiv({ cls: 'immich-share-result' })
-      resultContainer.createEl('p', { text: `PIN: ${this.lastShareResult.pin}`, cls: 'immich-share-pin-display' })
-      const resultTextarea = resultContainer.createEl('textarea', {
-        cls: 'immich-share-textarea',
-        attr: { rows: '3', readonly: '' }
-      })
-      resultTextarea.value = this.lastShareResult.shareString
-      resultTextarea.addEventListener('click', () => { resultTextarea.select() })
-      resultContainer.createEl('small', { text: 'Tap the text above to select, then copy. Share the string and pin separately.' })
-    }
-
-    // Vault sync import — show if shared creds detected
-    void hasVaultShare(this.plugin).then(available => {
-      if (available) {
-        new Setting(containerEl)
-          .setName('Shared credentials available')
-          .setDesc('Enter the pin to import')
-          .addText(text => text.setPlaceholder('4-digit pin'))
-          .addButton(btn => btn
-            .setButtonText('Import')
-            .setCta()
-            .onClick(async () => {
-              const input = btn.buttonEl.parentElement?.querySelector('input')
-              const pin = input?.value?.trim()
-              if (!pin || pin.length !== 4) {
-                new Notice('Enter the 4-digit pin')
-                return
-              }
-              const result = await importVaultShare(this.plugin, pin)
-              if (result) {
-                await this.plugin.setApiKey(result.apiKey)
-                this.plugin.settings.serverUrl = result.serverUrl
-                await this.plugin.saveSettings()
-                new Notice('Credentials imported!')
-                this.display()
-              } else {
-                new Notice('Invalid pin or credentials expired')
-              }
-            }))
-      }
-    })
-
-    // Share string import — always visible
-    new Setting(containerEl)
-      .setName('Import from share string')
-      .setHeading()
-
-    const importContainer = containerEl.createDiv({ cls: 'immich-share-import' })
-
-    const shareTextarea = importContainer.createEl('textarea', {
-      cls: 'immich-share-textarea',
-      attr: { placeholder: 'Paste share string here', rows: '3' }
-    })
-
-    const importRow = importContainer.createDiv({ cls: 'immich-share-import-row' })
-    const pinInput = importRow.createEl('input', {
-      cls: 'immich-share-pin',
-      type: 'text',
-      attr: { placeholder: '4-digit pin', maxlength: '4' }
-    })
-    const importBtn = importRow.createEl('button', {
-      text: 'Import',
-      cls: 'mod-cta'
-    })
-    importBtn.addEventListener('click', async () => {
-      const str = shareTextarea.value?.trim()
-      const pin = pinInput.value?.trim()
-      if (!str || !pin || pin.length !== 4) {
-        new Notice('Paste the share string and enter the 4-digit pin')
-        return
-      }
-      const result = await importShareString(str, pin)
-      if (result) {
-        await this.plugin.setApiKey(result.apiKey)
-        this.plugin.settings.serverUrl = result.serverUrl
-        await this.plugin.saveSettings()
-        new Notice('Credentials imported!')
-        this.display()
-      } else {
-        new Notice('Invalid share string, wrong pin, or expired')
-      }
-    })
-
   }
 
   updateFilenamePreview (el: HTMLElement, format: string): void {
