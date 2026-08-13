@@ -8,6 +8,20 @@ export default [
     ignores: ['node_modules/**', '.claude/**', '**/main.js', 'eslint.config.js', '*.mjs']
   },
   ...tseslint.configs.recommendedTypeChecked,
+  // Spread at top level: from 0.2 on this is a full flat config, not a bare
+  // rules object. Folding it into `rules` instead silently drops every rule
+  // it adds — which is how an obsidianmd finding reached review while `npm
+  // run lint` reported a clean tree.
+  ...obsidianmd.configs.recommended,
+  {
+    // moment is Obsidian's own date library, reached through window.moment and
+    // provided by the app. It is a devDependency here purely for its types, so
+    // there is no bundled copy to swap out.
+    files: ['package.json'],
+    rules: {
+      'depend/ban-dependencies': 'off'
+    }
+  },
   {
     files: ['**/*.ts'],
     plugins: {
@@ -34,7 +48,6 @@ export default [
       }
     },
     rules: {
-      ...obsidianmd.configs.recommended,
       'obsidianmd/ui/sentence-case': ['error', {
         brands: ['Immich', 'Markdown'],
         ignoreRegex: [
@@ -48,7 +61,9 @@ export default [
           '^original_filename -',
           '^taken_date -',
           '^description -',
-          '^display_width -'
+          '^display_width -',
+          // A URL shown as a code sample, not prose to be capitalised.
+          '^https://immich\\.example\\.com'
         ]
       }],
       'no-new': 'off',

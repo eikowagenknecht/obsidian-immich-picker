@@ -172,7 +172,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
             desc: createFragment(frag => {
               frag.appendText('Generate in Immich under Account Settings > API Keys.')
               frag.createEl('br')
-              frag.createEl('span', {
+              frag.createSpan({
                 text: 'Stored in your system credential manager, not in the plugin data file.',
                 cls: 'mod-success'
               })

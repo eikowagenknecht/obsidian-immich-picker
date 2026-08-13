@@ -39,7 +39,7 @@
 		"@types/node": "^18.19.130",
 		"esbuild": "^0.27.2",
 		"eslint": "^9.39.2",
-		"eslint-plugin-obsidianmd": "^0.1.9",
+		"eslint-plugin-obsidianmd": "^0.4.1",
 		"knip": "^5.80.0",
 		"moment": "^2.29.4",
 		"obsidian": "^1.13.1",
