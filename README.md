@@ -109,7 +109,7 @@ The **Image mode** setting controls what the plugin writes into your note:
 
 To move existing images from one mode to another, run "Convert Immich images" from the command palette:
 
-1. Choose a scope: current note, a folder, notes with a given tag, or the whole vault
+1. Choose a scope: current note, a folder, or the whole vault
 2. Choose the target format
 3. Click "Scan" to see how many images will be converted
 4. Click "Convert"

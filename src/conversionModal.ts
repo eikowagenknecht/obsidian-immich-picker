@@ -1,9 +1,8 @@
 import { App, Modal, Notice, Setting, TFile } from 'obsidian'
 import ImmichPicker from './main'
 import { FolderSuggest } from './suggesters/FolderSuggester'
-import { TagSuggest } from './suggesters/TagSuggester'
 
-type ScopeOption = 'note' | 'folder' | 'tag' | 'vault';
+type ScopeOption = 'note' | 'folder' | 'vault';
 type TargetFormat = 'local' | 'server-url' | 'shared' | 'code-block';
 
 interface ScanResult {
@@ -53,7 +52,6 @@ export class ConversionModal extends Modal {
 
   selectedScope: ScopeOption = 'note'
   selectedFolder = ''
-  selectedTag = ''
   targetFormat: TargetFormat = 'local'
 
   scanResults: ScanResult[] = []
@@ -83,7 +81,6 @@ export class ConversionModal extends Modal {
         dropdown
           .addOption('note', 'Current note')
           .addOption('folder', 'Folder')
-          .addOption('tag', 'By tag')
           .addOption('vault', 'Entire vault')
           .setValue(this.selectedScope)
           .onChange(value => {
@@ -104,22 +101,6 @@ export class ConversionModal extends Modal {
             .setValue(this.selectedFolder)
             .onChange(value => {
               this.selectedFolder = value
-              this.hasScanned = false
-            })
-        })
-    }
-
-    // Tag picker (shown when scope=tag)
-    if (this.selectedScope === 'tag') {
-      new Setting(contentEl)
-        .setName('Tag')
-        .addSearch(search => {
-          new TagSuggest(this.app, search.inputEl)
-          search
-            .setPlaceholder('#tag')
-            .setValue(this.selectedTag)
-            .onChange(value => {
-              this.selectedTag = value
               this.hasScanned = false
             })
         })
@@ -182,23 +163,6 @@ export class ConversionModal extends Modal {
         return this.app.vault.getMarkdownFiles()
           .filter(f => f.path.startsWith(folderPath + '/') || f.path === folderPath)
       }
-      case 'tag': {
-        if (!this.selectedTag) return []
-        const tag = this.selectedTag.startsWith('#') ? this.selectedTag : '#' + this.selectedTag
-        return this.app.vault.getMarkdownFiles().filter(file => {
-          const cache = this.app.metadataCache.getFileCache(file)
-          if (!cache) return false
-          // Check inline tags
-          if (cache.tags?.some(t => t.tag === tag)) return true
-          // Check frontmatter tags
-          const fmTags = cache.frontmatter?.tags
-          if (Array.isArray(fmTags)) {
-            const tagName = tag.replace(/^#/, '')
-            return fmTags.some((t: string) => t === tagName || t === tag)
-          }
-          return false
-        })
-      }
       case 'vault':
         return this.app.vault.getMarkdownFiles()
       default:
@@ -237,7 +201,6 @@ export class ConversionModal extends Modal {
     switch (this.selectedScope) {
       case 'note': return 'this note'
       case 'folder': return `the folder "${this.selectedFolder}"`
-      case 'tag': return `notes tagged ${this.selectedTag}`
       case 'vault': return 'your entire vault'
       default: return 'the selected scope'
     }
