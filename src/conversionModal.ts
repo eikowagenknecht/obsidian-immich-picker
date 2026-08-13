@@ -1,5 +1,6 @@
 import { App, Modal, Notice, Setting, TFile } from 'obsidian'
 import ImmichPicker, { ImmichReference, applyReplacements } from './main'
+import { ImmichAssetDetails } from './immichApi'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 
 type ScopeOption = 'note' | 'folder' | 'vault';
@@ -8,6 +9,22 @@ type TargetFormat = 'local' | 'server-url' | 'shared' | 'code-block';
 interface ScanResult {
   file: TFile;
   matches: ImmichReference[];
+}
+
+/**
+ * Adapts generator output, which is shaped for insertion at a cursor, to an
+ * in-place replacement: drop the padding they add, then re-add newlines only
+ * where a fenced block would otherwise land inside a paragraph.
+ */
+function fitToSurroundings (content: string, ref: ImmichReference, replacement: string): string {
+  const trimmed = replacement.trim()
+  if (!trimmed.startsWith('```')) return trimmed
+
+  const before = content.slice(0, ref.start)
+  const after = content.slice(ref.end)
+  return (before === '' || before.endsWith('\n') ? '' : '\n') +
+    trimmed +
+    (after === '' || after.startsWith('\n') ? '' : '\n')
 }
 
 /**
@@ -232,39 +249,68 @@ export class ConversionModal extends Modal {
 
         for (const ref of matches) {
           const { assetId } = ref
+          // Go through the same generators the picker uses, so a converted
+          // image is indistinguishable from a freshly inserted one — same
+          // template, same display width, and for local images the asset id
+          // stays in the note so it can be converted again later.
+          // Details cost a round trip each, and are only needed to fill
+          // template variables or to decide whether a photo is already small
+          // enough to skip resizing.
+          const needsDetails = this.targetFormat === 'local' ||
+            this.targetFormat === 'shared' ||
+            this.plugin.settings.displayWidth > 0
+          const details: ImmichAssetDetails = needsDetails
+            ? await this.plugin.immichApi.getAssetDetails(assetId)
+            : { id: assetId }
+          const description = details.exifInfo?.description || ''
+          const origWidth = details.exifInfo?.exifImageWidth
+          const origHeight = details.exifInfo?.exifImageHeight
           let replacement: string
 
           switch (this.targetFormat) {
             case 'local': {
               // Name after the photo's own date, as the picker does. Falling back
               // to now would give every image in the batch the same filename.
-              const details = await this.plugin.immichApi.getAssetDetails(assetId)
               const creationTime = details.fileCreatedAt ? window.moment(details.fileCreatedAt) : window.moment()
               const filename = creationTime.format(this.plugin.settings.filename)
               const { thumbnailFolder, linkPath, savePath } = await this.plugin.computeFreeThumbnailPaths(noteFolder, filename, reservedPaths)
               await this.plugin.ensureFolderExists(thumbnailFolder)
               await this.plugin.saveThumbnailToVault(assetId, savePath)
-              const useWikilinks = !(this.app.vault as unknown as { getConfig(key: string): unknown }).getConfig('useMarkdownLinks')
-              replacement = useWikilinks ? `![[${linkPath}]]` : `![](${linkPath})`
+              replacement = this.plugin.generateThumbnailMarkdown({
+                linkPath,
+                assetId,
+                originalFilename: details.originalFileName || '',
+                takenDate: creationTime.format(),
+                description,
+                origWidth,
+                origHeight
+              })
               break
             }
+            case 'shared':
+              replacement = await this.plugin.generateSharedMarkdown({
+                assetId,
+                originalFilename: details.originalFileName || '',
+                takenDate: details.fileCreatedAt || '',
+                description,
+                origWidth,
+                origHeight
+              })
+              break
             case 'server-url':
-              replacement = `![](${this.plugin.immichApi.getThumbnailUrl(assetId)})`
-              break
-            case 'shared': {
-              const sharedLink = await this.plugin.immichApi.createSharedLink(assetId)
-              const sharedUrl = this.plugin.immichApi.getSharedThumbnailUrl(assetId, sharedLink.key)
-              replacement = `![](${sharedUrl})`
-              break
-            }
             case 'code-block':
-              replacement = '```immich\n' + assetId + '\n```'
+              replacement = this.plugin.generateRemoteMarkdown({
+                assetId,
+                origWidth,
+                origHeight,
+                format: this.targetFormat
+              })
               break
             default:
               replacement = ref.text
           }
 
-          edits.push({ ref, replacement })
+          edits.push({ ref, replacement: fitToSurroundings(content, ref, replacement) })
           converted++
         }
 

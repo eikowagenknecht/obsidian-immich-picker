@@ -575,7 +575,7 @@ export class ImmichPickerModal extends Modal {
         let linkText: string
 
         if (this.plugin.settings.imageMode === 'remote') {
-          linkText = this.plugin.generateRemoteMarkdown(asset.id, origWidth, origHeight)
+          linkText = this.plugin.generateRemoteMarkdown({ assetId: asset.id, origWidth, origHeight })
         } else if (this.plugin.settings.imageMode === 'shared') {
           linkText = await this.plugin.generateSharedMarkdown({
             assetId: asset.id,
@@ -644,7 +644,7 @@ export class ImmichPickerModal extends Modal {
       let linkText: string
 
       if (this.plugin.settings.imageMode === 'remote') {
-        linkText = this.plugin.generateRemoteMarkdown(thumbnailImage.assetId, origWidth, origHeight)
+        linkText = this.plugin.generateRemoteMarkdown({ assetId: thumbnailImage.assetId, origWidth, origHeight })
       } else if (this.plugin.settings.imageMode === 'shared') {
         linkText = await this.plugin.generateSharedMarkdown({
           assetId: thumbnailImage.assetId,

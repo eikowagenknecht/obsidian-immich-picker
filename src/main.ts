@@ -1,6 +1,6 @@
 import { Editor, MarkdownView, moment, Notice, Plugin, TFile } from 'obsidian'
 import { ImmichApi } from './immichApi'
-import { ImmichPickerSettingTab, ImmichPickerSettings, DEFAULT_SETTINGS } from './settings'
+import { ImmichPickerSettingTab, ImmichPickerSettings, DEFAULT_SETTINGS, RemoteFormatOption } from './settings'
 import { ImmichPickerModal } from './photoModal'
 import { handlebarParse } from './handlebars'
 import { registerImmichPostProcessor, clearImmichBlobCache } from './postProcessor'
@@ -128,7 +128,7 @@ export default class ImmichPicker extends Plugin {
           let linkText: string
 
           if (this.settings.imageMode === 'remote') {
-            linkText = this.generateRemoteMarkdown(assetId)
+            linkText = this.generateRemoteMarkdown({ assetId })
           } else if (this.settings.imageMode === 'shared') {
             linkText = await this.generateSharedMarkdown({
               assetId,
@@ -346,20 +346,25 @@ export default class ImmichPicker extends Plugin {
 
   /**
    * Remote mode: generates markdown based on the selected remote format.
+   * `format` overrides the configured one, so bulk conversion can target a
+   * format the user is not currently inserting in.
    */
-  generateRemoteMarkdown (assetId: string, origWidth?: number, origHeight?: number): string {
-    const format = this.settings.remoteFormat || 'server-url'
-    const widthAlt = this.getWidthAlt(origWidth, origHeight)
-    const w = this.settings.displayWidth
+  generateRemoteMarkdown (params: {
+    assetId: string,
+    origWidth?: number,
+    origHeight?: number,
+    format?: RemoteFormatOption
+  }): string {
+    const format = params.format || this.settings.remoteFormat || 'server-url'
+    const widthAlt = this.getWidthAlt(params.origWidth, params.origHeight)
 
-    switch (format) {
-      case 'server-url':
-        return `![${widthAlt}](${this.immichApi.getThumbnailUrl(assetId)}) `
-      case 'code-block':
-        return '\n```immich\n' + assetId + (w > 0 ? `\nwidth=${w}` : '') + '\n```\n'
-      default:
-        return `![${widthAlt}](${this.immichApi.getThumbnailUrl(assetId)}) `
+    if (format === 'code-block') {
+      // Same sizing decision as the alt text, so a code block and a server
+      // link produced from one photo agree on whether to resize at all.
+      const widthLine = widthAlt ? `\nwidth=${widthAlt.slice(1)}` : ''
+      return '\n```immich\n' + params.assetId + widthLine + '\n```\n'
     }
+    return `![${widthAlt}](${this.immichApi.getThumbnailUrl(params.assetId)}) `
   }
 
   async generateSharedMarkdown (params: {

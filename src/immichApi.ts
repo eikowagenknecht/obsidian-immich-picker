@@ -11,6 +11,7 @@ export interface ImmichAsset {
 
 export interface ImmichAssetDetails {
   id: string;
+  originalFileName?: string;
   fileCreatedAt?: string;
   exifInfo?: {
     description?: string;
