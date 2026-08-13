@@ -136,6 +136,7 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 | Display width | Default width for inserted images | Original size |
 | Photos per page | Photos loaded at a time (recent, search, pagination) | 9 |
 | Grid columns | Number of columns in the photo grid | 3 |
+| Include archived photos | Show archived photos in recent, search and date results (albums always show them) | Disabled |
 | Get date from | Where to extract date for filtering (Disabled/Note title/Frontmatter) | Disabled |
 | Date format | MomentJS format for parsing dates | `YYYY-MM-DD` |
 | Frontmatter key | Property name containing the date | `date` |

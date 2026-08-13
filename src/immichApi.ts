@@ -82,45 +82,81 @@ export class ImmichApi {
     }
   }
 
-  async getRecentPhotos (count: number, page = 1): Promise<ImmichAsset[]> {
+  private async search (endpoint: string, body: Record<string, unknown>, errorLabel: string): Promise<ImmichAsset[]> {
     const response = await requestUrl({
-      url: `${this.serverUrl}/api/search/metadata`,
+      url: `${this.serverUrl}${endpoint}`,
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify({
-        page,
-        size: count,
-        type: 'IMAGE',
-        order: 'desc'
-      })
+      body: JSON.stringify(body)
     })
 
     if (response.status !== 200) {
-      throw new Error(`Failed to fetch photos: ${response.status}`)
+      throw new Error(`${errorLabel}: ${response.status}`)
     }
 
     const data = response.json as ImmichSearchResponse
     return data.assets?.items || []
   }
 
+  /**
+   * Immich searches filter on a single visibility value, so timeline plus
+   * archived takes two requests. The value is always sent explicitly because
+   * the server default changed between versions: 1.133+ returns `timeline`
+   * only, while 3.x returns everything that is not locked.
+   *
+   * `order` re-sorts the merged pages. Smart search has no such key, so its
+   * archived hits are appended and each half keeps its relevance order.
+   */
+  private async searchVisible (
+    endpoint: string,
+    body: Record<string, unknown>,
+    errorLabel: string,
+    order?: 'asc' | 'desc'
+  ): Promise<ImmichAsset[]> {
+    if (!this.plugin.settings.includeArchived) {
+      return this.search(endpoint, { ...body, visibility: 'timeline' }, errorLabel)
+    }
+
+    // Every asset has exactly one visibility, so the two pages never overlap.
+    const [timeline, archived] = await Promise.all([
+      this.search(endpoint, { ...body, visibility: 'timeline' }, errorLabel),
+      this.search(endpoint, { ...body, visibility: 'archive' }, errorLabel)
+    ])
+
+    const merged = [...timeline, ...archived]
+    if (order) {
+      merged.sort((a, b) => {
+        const diff = new Date(a.fileCreatedAt).getTime() - new Date(b.fileCreatedAt).getTime()
+        return order === 'asc' ? diff : -diff
+      })
+    }
+    return merged
+  }
+
+  async getRecentPhotos (count: number, page = 1): Promise<ImmichAsset[]> {
+    return this.searchVisible(
+      '/api/search/metadata',
+      {
+        page,
+        size: count,
+        type: 'IMAGE',
+        order: 'desc'
+      },
+      'Failed to fetch photos',
+      'desc'
+    )
+  }
+
   async searchPhotos (query: string, count: number, page = 1): Promise<ImmichAsset[]> {
-    const response = await requestUrl({
-      url: `${this.serverUrl}/api/search/smart`,
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({
+    return this.searchVisible(
+      '/api/search/smart',
+      {
         query,
         page,
         size: count
-      })
-    })
-
-    if (response.status !== 200) {
-      throw new Error(`Failed to search photos: ${response.status}`)
-    }
-
-    const data = response.json as ImmichSearchResponse
-    return data.assets?.items || []
+      },
+      'Failed to search photos'
+    )
   }
 
   async getPhotosByDate (date: moment.Moment, count: number, page = 1): Promise<ImmichAsset[]> {
@@ -128,26 +164,19 @@ export class ImmichApi {
     const takenAfter = date.clone().startOf('day').toISOString()
     const takenBefore = date.clone().endOf('day').toISOString()
 
-    const response = await requestUrl({
-      url: `${this.serverUrl}/api/search/metadata`,
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({
+    return this.searchVisible(
+      '/api/search/metadata',
+      {
         page,
         size: count,
         type: 'IMAGE',
         takenAfter,
         takenBefore,
         order: 'asc'
-      })
-    })
-
-    if (response.status !== 200) {
-      throw new Error(`Failed to fetch photos by date: ${response.status}`)
-    }
-
-    const data = response.json as ImmichSearchResponse
-    return data.assets?.items || []
+      },
+      'Failed to fetch photos by date',
+      'asc'
+    )
   }
 
   getThumbnailUrl (assetId: string): string {

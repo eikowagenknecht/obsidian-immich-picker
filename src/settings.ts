@@ -11,6 +11,7 @@ export interface ImmichPickerSettings {
   apiKey: string;
   recentPhotosCount: number;
   gridColumns: number;
+  includeArchived: boolean;
   imageMode: ImageModeOption;
   remoteFormat: RemoteFormatOption;
   displayWidth: number;
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   apiKey: '',
   recentPhotosCount: 9,
   gridColumns: 3,
+  includeArchived: false,
   imageMode: 'local',
   remoteFormat: 'server-url',
   displayWidth: 0,
@@ -151,6 +153,19 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
               min: 1,
               max: 10,
               defaultValue: DEFAULT_SETTINGS.gridColumns
+            }
+          },
+          {
+            name: 'Include archived photos',
+            desc: createFragment(frag => {
+              frag.appendText('Show photos archived in Immich in recent, search and date results.')
+              frag.createEl('br')
+              frag.appendText('Archived photos are always visible when browsing albums.')
+            }),
+            control: {
+              type: 'toggle',
+              key: 'includeArchived',
+              defaultValue: DEFAULT_SETTINGS.includeArchived
             }
           }
         ]
