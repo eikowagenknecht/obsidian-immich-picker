@@ -51,24 +51,7 @@ export class GridView {
         img.description = asset.description || ''
         img.onclick = onclick
         img.classList.add('immich-picker-thumbnail')
-
-        // Wrap in container with expand button
-        const wrapper = document.createElement('div')
-        wrapper.classList.add('immich-picker-thumb-wrapper')
-        const expandBtn = document.createElement('button')
-        expandBtn.classList.add('immich-picker-expand-btn')
-        expandBtn.textContent = '⤢'
-        expandBtn.title = 'Preview full size'
-        expandBtn.addEventListener('click', e => {
-          e.stopPropagation()
-          e.preventDefault()
-          if (img.src && !img.src.startsWith('data:')) {
-            this.showLightbox(img.src, img.originalFilename)
-          }
-        })
-        wrapper.appendChild(img)
-        wrapper.appendChild(expandBtn)
-        el.appendChild(wrapper)
+        el.appendChild(img)
 
         // Fetch actual thumbnail
         const thumbnailUrl = api.getThumbnailUrl(asset.id)
@@ -109,34 +92,6 @@ export class GridView {
         img.src = createErrorSvg(errorMsg, hint || undefined)
       }
     }
-  }
-
-  showLightbox (src: string, title: string) {
-    const overlay = document.createElement('div')
-    overlay.classList.add('immich-picker-lightbox')
-
-    const img = document.createElement('img')
-    img.src = src
-    img.classList.add('immich-picker-lightbox-img')
-
-    const closeBtn = document.createElement('button')
-    closeBtn.classList.add('immich-picker-lightbox-close')
-    closeBtn.textContent = '\u00D7'
-
-    const caption = document.createElement('div')
-    caption.classList.add('immich-picker-lightbox-caption')
-    caption.textContent = title
-
-    const close = () => { overlay.remove() }
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) close()
-    })
-    closeBtn.addEventListener('click', close)
-
-    overlay.appendChild(closeBtn)
-    overlay.appendChild(img)
-    overlay.appendChild(caption)
-    document.body.appendChild(overlay)
   }
 
   destroy () {
