@@ -105,6 +105,35 @@ The **Image mode** setting controls what the plugin writes into your note:
 | Remote | A markdown link to your Immich server | Nothing saved to your vault, but the plugin has to be installed to see the image |
 | Shared | An Immich shared link | The URL works anywhere, and is readable by anyone who has it |
 
+### Use Different Markdown for Different Notes
+
+In local and shared mode, the plugin fills a named template to build the text it
+inserts. Settings → Output templates starts with one, and you can add as many as
+you like — useful when part of your vault goes somewhere else. The default wraps
+the thumbnail in a link back to Immich, which is handy in Obsidian but trips up
+publish plugins (Ghost, Hugo, and friends) that re-upload local embeds and only
+recognise a plain `![](...)`:
+
+```markdown
+# Default — one click back to the original
+[![]({{local_thumbnail_link}})]({{immich_url}})
+
+# Publish-safe — a plain embed, backlink parked in a comment
+![]({{local_thumbnail_link}})
+<!--immich: {{immich_url}}-->
+```
+
+Once there is more than one template, two things appear:
+
+- **Default template** — used everywhere no folder rule applies.
+- **Folder rules** — map a folder to a template. Notes in `Blog/posts` get the
+  publish-safe one, everything else keeps the default. The deepest matching rule
+  wins, so a rule on `Blog/drafts` overrides one on `Blog`.
+
+The picker shows the resolved choice in a "Format" dropdown, so you can override
+it for a single insert without touching settings. Pasted Immich URLs and bulk
+conversion follow the folder rules on their own.
+
 ### Convert Between Formats
 
 To move existing images from one mode to another, run "Convert Immich images" from the command palette:
@@ -116,7 +145,7 @@ To move existing images from one mode to another, run "Convert Immich images" fr
 
 Converting to shared links asks for confirmation first, since those URLs are public and do not expire.
 
-Conversion needs the note to record which Immich asset an image came from. Remote and shared images always carry it in their URL. Local images carry it only if your inserted text format includes `{{immich_url}}` or `{{immich_thumbnail_url}}` — the default and the "Markdown" preset do, the "Wikilink" and "Image only" presets do not. Images inserted with those two are skipped by the scan, because nothing in the note says which photo they are.
+Conversion needs the note to record which Immich asset an image came from. Remote and shared images always carry it in their URL. Local images carry it only if the template that inserted them includes `{{immich_url}}` or `{{immich_thumbnail_url}}`, either in the image itself or in a trailing `<!--immich: {{immich_url}}-->` comment. Images inserted from a template with neither are skipped by the scan, because nothing in the note says which photo they are.
 
 ### Mobile
 
@@ -143,20 +172,21 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 | Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
 | Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |
-| Markdown template | Output format for inserted images | `[![]({{local_thumbnail_link}})]({{immich_url}})` |
+| Output templates | Named Markdown templates for inserted images | One, `[![]({{local_thumbnail_link}})]({{immich_url}})` |
+| Default template | Template for notes no folder rule matches | The first one |
+| Folder rules | Folders that get a template of their own | None |
 | Convert pasted Immich links | Auto-convert pasted URLs to thumbnails | Enabled |
 
 ### Template Variables
 
-- `{{local_thumbnail_link}}` - Path to the local thumbnail
+- `{{local_thumbnail_link}}` - Path to the local thumbnail (the shared URL in shared mode)
 - `{{immich_thumbnail_url}}` - Direct thumbnail URL on the server
 - `{{immich_url}}` - URL to the photo in Immich
 - `{{immich_asset_id}}` - The Immich asset ID
 - `{{original_filename}}` - Original filename from Immich
 - `{{taken_date}}` - Date the photo was taken
 - `{{description}}` - Photo description from Immich
-
-The settings tab offers a few presets for this, picked to match whether your vault uses markdown links or wikilinks.
+- `{{display_width}}` - Width suffix for the alt text, e.g. `|400`
 
 ## Development
 

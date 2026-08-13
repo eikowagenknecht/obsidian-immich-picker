@@ -1,10 +1,34 @@
-import { App, Notice, Platform, PluginSettingTab, SettingDefinitionItem, SettingGroupItem } from 'obsidian'
+import { App, Notice, Platform, PluginSettingTab, SettingDefinitionItem, SettingDefinitionPage, SettingGroupItem } from 'obsidian'
 import { clearImmichBlobCache } from './postProcessor'
+import { FolderSuggest } from './suggesters/FolderSuggester'
 import ImmichPicker from './main'
 
 export type GetDateFromOption = 'none' | 'title' | 'frontmatter';
 export type RemoteFormatOption = 'server-url' | 'code-block';
 export type ImageModeOption = 'local' | 'remote' | 'shared';
+
+/** A named Markdown template the picker can insert a photo with. */
+export interface OutputTemplate {
+  /** Stable key referenced by `defaultTemplateId` and by folder rules. */
+  id: string;
+  name: string;
+  template: string;
+}
+
+/** Picks a template automatically for notes inside a folder. */
+export interface FolderTemplateRule {
+  folder: string;
+  templateId: string;
+}
+
+/**
+ * Fields no longer written, kept only so data files from older versions can
+ * be read once and migrated. See `normalizeTemplateSettings`.
+ */
+export interface LegacySettings {
+  /** Pre-1.2: the single global template, now the first entry in the list. */
+  thumbnailMarkdown?: string;
+}
 
 export interface ImmichPickerSettings {
   serverUrl: string;
@@ -19,7 +43,9 @@ export interface ImmichPickerSettings {
   thumbnailWidth: number;
   thumbnailHeight: number;
   filename: string;
-  thumbnailMarkdown: string;
+  outputTemplates: OutputTemplate[];
+  defaultTemplateId: string;
+  folderTemplateRules: FolderTemplateRule[];
   locationOption: string;
   locationFolder: string;
   locationSubfolder: string;
@@ -28,6 +54,11 @@ export interface ImmichPickerSettings {
   getDateFromFrontMatterKey: string;
   getDateFromFormat: string;
 }
+
+/** The template every install starts with, and the fallback if none is left. */
+export const DEFAULT_TEMPLATE_MARKDOWN = '[![]({{local_thumbnail_link}})]({{immich_url}}) '
+
+const DEFAULT_TEMPLATE_ID = 'default'
 
 export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   serverUrl: '',
@@ -42,7 +73,9 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   thumbnailWidth: 400,
   thumbnailHeight: 280,
   filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
-  thumbnailMarkdown: '[![]({{local_thumbnail_link}})]({{immich_url}}) ',
+  outputTemplates: [{ id: DEFAULT_TEMPLATE_ID, name: 'Default', template: DEFAULT_TEMPLATE_MARKDOWN }],
+  defaultTemplateId: DEFAULT_TEMPLATE_ID,
+  folderTemplateRules: [],
   locationOption: 'note',
   locationFolder: '',
   locationSubfolder: 'photos',
@@ -50,6 +83,60 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   getDateFrom: 'none',
   getDateFromFrontMatterKey: 'date',
   getDateFromFormat: 'YYYY-MM-DD'
+}
+
+/**
+ * A fresh copy of the defaults. The arrays in DEFAULT_SETTINGS are shared
+ * module state, and settings get mutated in place all over the plugin, so
+ * handing them out directly would let an edit rewrite the defaults.
+ */
+export function cloneDefaultSettings (): ImmichPickerSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    outputTemplates: DEFAULT_SETTINGS.outputTemplates.map(t => ({ ...t })),
+    folderTemplateRules: []
+  }
+}
+
+/**
+ * Brings a loaded settings object up to the template list and repairs
+ * dangling references.
+ *
+ * Up to 1.1.7 there was one global `thumbnailMarkdown` string. It becomes the
+ * single entry in the list, so upgrading inserts exactly what it did before.
+ * Repointing rather than dropping broken references keeps every later reader
+ * free of "what if that id is gone" checks, without anything vanishing from
+ * the settings UI unannounced.
+ */
+export function normalizeTemplateSettings (settings: ImmichPickerSettings, legacy?: LegacySettings): void {
+  if (!Array.isArray(settings.outputTemplates) || settings.outputTemplates.length === 0) {
+    settings.outputTemplates = [{
+      id: DEFAULT_TEMPLATE_ID,
+      name: 'Default',
+      template: legacy?.thumbnailMarkdown || DEFAULT_TEMPLATE_MARKDOWN
+    }]
+    settings.defaultTemplateId = DEFAULT_TEMPLATE_ID
+  }
+
+  const ids = new Set(settings.outputTemplates.map(t => t.id))
+  if (!ids.has(settings.defaultTemplateId)) {
+    settings.defaultTemplateId = settings.outputTemplates[0].id
+  }
+
+  if (!Array.isArray(settings.folderTemplateRules)) {
+    settings.folderTemplateRules = []
+  }
+  for (const rule of settings.folderTemplateRules) {
+    if (!ids.has(rule.templateId)) rule.templateId = settings.defaultTemplateId
+  }
+}
+
+/** An id that no existing template is using. */
+export function newTemplateId (existing: OutputTemplate[]): string {
+  const taken = new Set(existing.map(t => t.id))
+  let id = 'tpl-' + Date.now().toString(36)
+  for (let n = 1; taken.has(id); n++) id = `tpl-${Date.now().toString(36)}-${n}`
+  return id
 }
 
 export class ImmichPickerSettingTab extends PluginSettingTab {
@@ -293,14 +380,18 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       },
       // Thumbnail and storage settings only apply when files are downloaded.
       ...(this.plugin.settings.imageMode === 'local' ? this.localStorageGroups() : []),
+      // Remote mode writes a fixed format, so there is no template to pick.
+      ...(this.plugin.settings.imageMode === 'remote'
+        ? [{
+            type: 'group' as const,
+            heading: 'Output format',
+            items: [this.remoteFormatInfo()]
+          }]
+        : this.templateGroups()),
       {
         type: 'group',
-        heading: 'Output format',
-        // Keeps the `.immich-picker-settings textarea` rule in styles.css applying.
-        cls: 'immich-picker-settings',
-        items: this.plugin.settings.imageMode === 'remote'
-          ? [this.remoteFormatInfo(), this.pastedLinkToggle()]
-          : [this.insertedMarkdownItem(), this.pastedLinkToggle()]
+        heading: 'Pasted links',
+        items: [this.pastedLinkToggle()]
       }
     ]
   }
@@ -405,29 +496,215 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     ]
   }
 
-  /** Local and shared modes both fill the user's template. */
-  private insertedMarkdownItem (): SettingGroupItem {
+  /**
+   * Local and shared modes both fill a template. Rendered as a list of named
+   * templates plus the rules that pick between them, so a vault can keep a
+   * linked thumbnail for ordinary notes and a plain embed for notes that get
+   * published elsewhere.
+   */
+  private templateGroups (): SettingDefinitionItem[] {
+    const templates = this.plugin.settings.outputTemplates
+    // Nothing to choose between, and nothing to route to, until there are two.
+    const hasChoice = () => this.plugin.settings.outputTemplates.length > 1
+
+    return [
+      {
+        type: 'list',
+        heading: 'Output templates',
+        // Keeps the `.immich-picker-settings textarea` rule in styles.css applying.
+        cls: 'immich-picker-settings',
+        items: templates.map(template => this.templatePage(template)),
+        addItem: {
+          name: 'Add template',
+          action: () => { void this.addTemplate() }
+        },
+        onReorder: (oldIndex, newIndex) => { void this.reorderTemplates(oldIndex, newIndex) },
+        onDelete: index => { void this.deleteTemplate(index) }
+      },
+      {
+        type: 'group',
+        visible: hasChoice,
+        items: [
+          {
+            name: 'Default template',
+            desc: 'Used for notes no folder rule matches, and pre-selected in the picker.',
+            control: {
+              type: 'dropdown',
+              key: 'defaultTemplateId',
+              options: Object.fromEntries(templates.map(t => [t.id, t.name || 'Unnamed template'])),
+              defaultValue: this.plugin.settings.defaultTemplateId
+            }
+          }
+        ]
+      },
+      {
+        type: 'list',
+        heading: 'Folder rules',
+        visible: hasChoice,
+        emptyState: 'No rules. Every note uses the default template.',
+        items: this.plugin.settings.folderTemplateRules.map(rule => this.folderRuleRow(rule)),
+        addItem: {
+          name: 'Add folder rule',
+          action: () => { void this.addFolderRule() }
+        },
+        onDelete: index => { void this.deleteFolderRule(index) }
+      },
+      {
+        type: 'group',
+        visible: hasChoice,
+        items: [
+          {
+            name: 'How templates are chosen',
+            desc: createFragment(frag => {
+              frag.appendText('Deepest matching folder rule wins, otherwise the default template is used. ')
+              frag.appendText('The picker shows the resolved choice and lets you override it for a single insert.')
+            }),
+            render: () => { /* description only */ }
+          }
+        ]
+      }
+    ]
+  }
+
+  /** One template, edited on its own page so the textarea has room. */
+  private templatePage (template: OutputTemplate): SettingDefinitionPage {
     return {
-      name: 'Inserted Markdown',
-      desc: createFragment(frag => {
-        frag.appendText('The Markdown text inserted when adding a photo. Available variables:')
-        const ul = frag.createEl('ul')
-        ul.createEl('li', { text: 'local_thumbnail_link - path to the local thumbnail (the shared URL in shared mode)' })
-        ul.createEl('li', { text: 'immich_thumbnail_url - the thumbnail URL on the server' })
-        ul.createEl('li', { text: 'immich_url - URL to the photo in Immich' })
-        ul.createEl('li', { text: 'immich_asset_id - the Immich asset ID' })
-        ul.createEl('li', { text: 'original_filename - original filename from Immich' })
-        ul.createEl('li', { text: 'taken_date - date the photo was taken' })
-        ul.createEl('li', { text: 'description - photo description from Immich' })
-        ul.createEl('li', { text: 'display_width - image width from settings (e.g. |400)' })
-      }),
-      control: {
-        type: 'textarea',
-        key: 'thumbnailMarkdown',
-        placeholder: DEFAULT_SETTINGS.thumbnailMarkdown,
-        defaultValue: DEFAULT_SETTINGS.thumbnailMarkdown
+      type: 'page',
+      name: template.name || 'Unnamed template',
+      displayValue: () => template.template.replace(/\s+/g, ' ').trim().slice(0, 40),
+      items: [
+        {
+          name: 'Name',
+          desc: 'Shown in the picker and in the folder rules below.',
+          control: {
+            type: 'text',
+            key: `template:${template.id}:name`,
+            placeholder: 'Publish-safe',
+            defaultValue: template.name
+          }
+        },
+        {
+          name: 'Inserted Markdown',
+          desc: createFragment(frag => {
+            frag.appendText('The Markdown text inserted when adding a photo. Available variables:')
+            const ul = frag.createEl('ul')
+            ul.createEl('li', { text: 'local_thumbnail_link - path to the local thumbnail (the shared URL in shared mode)' })
+            ul.createEl('li', { text: 'immich_thumbnail_url - the thumbnail URL on the server' })
+            ul.createEl('li', { text: 'immich_url - URL to the photo in Immich' })
+            ul.createEl('li', { text: 'immich_asset_id - the Immich asset ID' })
+            ul.createEl('li', { text: 'original_filename - original filename from Immich' })
+            ul.createEl('li', { text: 'taken_date - date the photo was taken' })
+            ul.createEl('li', { text: 'description - photo description from Immich' })
+            ul.createEl('li', { text: 'display_width - image width from settings (e.g. |400)' })
+            frag.createEl('br')
+            frag.appendText('Include immich_url or immich_thumbnail_url if you want "Convert Immich images" to find these images later. ')
+            frag.appendText('A trailing ')
+            frag.createEl('code', { text: '<!--immich: {{immich_url}}-->' })
+            frag.appendText(' comment counts, and keeps the embed itself a plain one for publish plugins.')
+          }),
+          control: {
+            type: 'textarea',
+            key: `template:${template.id}:body`,
+            placeholder: DEFAULT_TEMPLATE_MARKDOWN,
+            defaultValue: template.template
+          }
+        }
+      ]
+    }
+  }
+
+  /**
+   * A folder rule needs two controls on one row, which the declarative
+   * controls cannot express, so it is built by hand. The row closes over the
+   * rule object rather than its index, so deleting another rule cannot make
+   * this one write to the wrong entry.
+   */
+  private folderRuleRow (rule: FolderTemplateRule): SettingGroupItem {
+    return {
+      name: 'Notes in',
+      searchable: false,
+      render: setting => {
+        setting.addSearch(search => {
+          new FolderSuggest(this.app, search.inputEl)
+          search
+            .setPlaceholder('Blog/posts')
+            .setValue(rule.folder)
+            .onChange(async value => {
+              rule.folder = value.trim().replace(/^\/+|\/+$/g, '')
+              await this.plugin.saveSettings()
+            })
+        })
+        setting.addDropdown(dropdown => {
+          for (const template of this.plugin.settings.outputTemplates) {
+            dropdown.addOption(template.id, template.name || 'Unnamed template')
+          }
+          dropdown
+            .setValue(rule.templateId)
+            .onChange(async value => {
+              rule.templateId = value
+              await this.plugin.saveSettings()
+            })
+        })
       }
     }
+  }
+
+  private async addTemplate (): Promise<void> {
+    const templates = this.plugin.settings.outputTemplates
+    templates.push({
+      id: newTemplateId(templates),
+      name: `Template ${templates.length + 1}`,
+      template: DEFAULT_TEMPLATE_MARKDOWN
+    })
+    await this.plugin.saveSettings()
+    this.rebuild()
+  }
+
+  private async reorderTemplates (oldIndex: number, newIndex: number): Promise<void> {
+    const templates = this.plugin.settings.outputTemplates
+    if (oldIndex < 0 || oldIndex >= templates.length) return
+    const [moved] = templates.splice(oldIndex, 1)
+    templates.splice(newIndex, 0, moved)
+    await this.plugin.saveSettings()
+    this.rebuild()
+  }
+
+  private async deleteTemplate (index: number): Promise<void> {
+    const settings = this.plugin.settings
+    // Something has to be inserted, so the last template cannot go away.
+    if (settings.outputTemplates.length <= 1) {
+      new Notice('Keep at least one output template')
+      this.rebuild()
+      return
+    }
+
+    if (index < 0 || index >= settings.outputTemplates.length) return
+    settings.outputTemplates.splice(index, 1)
+    // Repoints the default and any rules that named it.
+    normalizeTemplateSettings(settings)
+    await this.plugin.saveSettings()
+    this.rebuild()
+  }
+
+  private async addFolderRule (): Promise<void> {
+    this.plugin.settings.folderTemplateRules.push({
+      folder: '',
+      templateId: this.plugin.settings.defaultTemplateId
+    })
+    await this.plugin.saveSettings()
+    this.rebuild()
+  }
+
+  private async deleteFolderRule (index: number): Promise<void> {
+    this.plugin.settings.folderTemplateRules.splice(index, 1)
+    await this.plugin.saveSettings()
+    this.rebuild()
+  }
+
+  /** Redraws the tab after the definitions themselves changed. */
+  private rebuild (): void {
+    this.update()
+    this.display()
   }
 
   /** Remote mode writes a fixed format, so there is nothing to edit. */
@@ -466,11 +743,27 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     }
   }
 
+  /**
+   * The two fields of a template are addressed as `template:<id>:name` and
+   * `template:<id>:body`, since the declarative controls key into a flat
+   * settings object and templates live in an array.
+   */
+  private templateField (key: string): { template: OutputTemplate, field: 'name' | 'body' } | null {
+    const match = /^template:(.+):(name|body)$/.exec(key)
+    if (!match) return null
+    const template = this.plugin.settings.outputTemplates.find(t => t.id === match[1])
+    return template ? { template, field: match[2] as 'name' | 'body' } : null
+  }
+
   getControlValue (key: string): unknown {
     // The API key lives in the OS credential manager, not in settings. It is
     // cached at load, so it can still be read synchronously here.
     if (key === 'apiKey') return this.plugin.cachedApiKey
     if (key === 'displayWidth') return String(this.plugin.settings.displayWidth)
+
+    const field = this.templateField(key)
+    if (field) return field.field === 'name' ? field.template.name : field.template.template
+
     return this.plugin.settings[key as keyof ImmichPickerSettings]
   }
 
@@ -479,6 +772,20 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       await this.plugin.setApiKey(this.normalize(key, String(value)))
       // Thumbnails fetched with the previous key may no longer be valid.
       clearImmichBlobCache()
+      return
+    }
+
+    const field = this.templateField(key)
+    if (field) {
+      if (field.field === 'name') {
+        field.template.name = String(value).trim()
+      } else {
+        field.template.template = String(value)
+      }
+      // Deliberately no re-render: this runs per keystroke, and the places a
+      // name is echoed (the list entry, the dropdowns) are rebuilt when the
+      // user navigates back out of the page anyway.
+      await this.plugin.saveSettings()
       return
     }
 

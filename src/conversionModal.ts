@@ -264,6 +264,9 @@ export class ConversionModal extends Modal {
 
         const content = await this.app.vault.cachedRead(file)
         const noteFolder = file.path.split('/').slice(0, -1).join('/')
+        // Per note, not per batch: converting a folder that spans a folder
+        // rule should leave each note in the format that folder calls for.
+        const templateId = this.plugin.templateIdForPath(file.path)
         const edits: { ref: ImmichReference, replacement: string }[] = []
         const freed: TFile[] = []
 
@@ -310,7 +313,8 @@ export class ConversionModal extends Modal {
                 takenDate: creationTime.format(),
                 description,
                 origWidth,
-                origHeight
+                origHeight,
+                templateId
               })
               break
             }
@@ -321,7 +325,8 @@ export class ConversionModal extends Modal {
                 takenDate: details.fileCreatedAt || '',
                 description,
                 origWidth,
-                origHeight
+                origHeight,
+                templateId
               })
               break
             case 'server-url':

@@ -45,6 +45,12 @@
   border-color: var(--interactive-accent);
 }
 
+/* Output template selector */
+.immich-picker-template-select {
+  font-size: var(--font-ui-small);
+  max-width: 100%;
+}
+
 /* Immich Picker Modal */
 .immich-picker-modal {
   width: 700px;

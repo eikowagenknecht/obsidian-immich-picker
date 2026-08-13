@@ -1,6 +1,14 @@
 import { Editor, MarkdownView, moment, Notice, Plugin, TFile } from 'obsidian'
 import { ImmichApi } from './immichApi'
-import { ImmichPickerSettingTab, ImmichPickerSettings, DEFAULT_SETTINGS, RemoteFormatOption } from './settings'
+import {
+  ImmichPickerSettingTab,
+  ImmichPickerSettings,
+  LegacySettings,
+  RemoteFormatOption,
+  DEFAULT_TEMPLATE_MARKDOWN,
+  cloneDefaultSettings,
+  normalizeTemplateSettings
+} from './settings'
 import { ImmichPickerModal } from './photoModal'
 import { handlebarParse } from './handlebars'
 import { registerImmichPostProcessor, clearImmichBlobCache } from './postProcessor'
@@ -132,6 +140,8 @@ export default class ImmichPicker extends Plugin {
           }
 
           let linkText: string
+          // No picker to choose in, so the folder rules decide alone.
+          const templateId = this.templateIdForPath(noteFile.path)
 
           if (this.settings.imageMode === 'remote') {
             linkText = this.generateRemoteMarkdown({ assetId })
@@ -140,7 +150,8 @@ export default class ImmichPicker extends Plugin {
               assetId,
               originalFilename: '',
               takenDate: window.moment().format(),
-              description: ''
+              description: '',
+              templateId
             })
           } else {
             const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
@@ -156,7 +167,8 @@ export default class ImmichPicker extends Plugin {
               assetId,
               originalFilename: '',
               takenDate: creationTime.format(),
-              description: ''
+              description: '',
+              templateId
             })
           }
 
@@ -304,6 +316,40 @@ export default class ImmichPicker extends Plugin {
     return `|${maxSize}`
   }
 
+  /**
+   * The template a note should be inserted with, from the folder rules.
+   *
+   * The deepest matching folder wins, so a rule on `blog/drafts` beats one on
+   * `blog` for a note inside both. Notes matched by nothing get the default.
+   * Comparison is case-insensitive, since a folder path typed into the rule
+   * rarely matches the vault's casing exactly.
+   */
+  templateIdForPath (notePath?: string | null): string {
+    let best: { id: string, depth: number } | null = null
+
+    for (const rule of this.settings.folderTemplateRules) {
+      const folder = rule.folder.replace(/^\/+|\/+$/g, '')
+      if (!folder || !notePath) continue
+      if (!notePath.toLowerCase().startsWith(folder.toLowerCase() + '/')) continue
+      if (!best || folder.length > best.depth) best = { id: rule.templateId, depth: folder.length }
+    }
+
+    return best?.id ?? this.settings.defaultTemplateId
+  }
+
+  /**
+   * Template text for an id. Falls back through the default to the first
+   * entry, so a stale id from a picker left open across a settings change
+   * still produces something insertable.
+   */
+  templateFor (templateId?: string): string {
+    const templates = this.settings.outputTemplates
+    const found = templates.find(t => t.id === templateId) ??
+      templates.find(t => t.id === this.settings.defaultTemplateId) ??
+      templates[0]
+    return found?.template ?? DEFAULT_TEMPLATE_MARKDOWN
+  }
+
   generateThumbnailMarkdown (params: {
     linkPath: string,
     assetId: string,
@@ -313,9 +359,11 @@ export default class ImmichPicker extends Plugin {
     origWidth?: number,
     origHeight?: number,
     /** Overrides the display width setting for this one call. */
-    displayWidth?: number
+    displayWidth?: number,
+    /** Overrides the template the folder rules would pick. */
+    templateId?: string
   }): string {
-    return handlebarParse(this.settings.thumbnailMarkdown, {
+    return handlebarParse(this.templateFor(params.templateId), {
       local_thumbnail_link: params.linkPath,
       immich_thumbnail_url: this.immichApi.getThumbnailUrl(params.assetId),
       immich_asset_id: params.assetId,
@@ -360,12 +408,14 @@ export default class ImmichPicker extends Plugin {
     origWidth?: number,
     origHeight?: number,
     /** Overrides the display width setting for this one call. */
-    displayWidth?: number
+    displayWidth?: number,
+    /** Overrides the template the folder rules would pick. */
+    templateId?: string
   }): Promise<string> {
     const sharedLink = await this.immichApi.createSharedLink(params.assetId)
     const sharedThumbnailUrl = this.immichApi.getSharedThumbnailUrl(params.assetId, sharedLink.key)
 
-    return handlebarParse(this.settings.thumbnailMarkdown, {
+    return handlebarParse(this.templateFor(params.templateId), {
       local_thumbnail_link: sharedThumbnailUrl,
       immich_thumbnail_url: sharedThumbnailUrl,
       immich_asset_id: params.assetId,
@@ -389,9 +439,13 @@ export default class ImmichPicker extends Plugin {
    * text around it.
    *
    * A reference is only convertible if the note records the asset id
-   * somewhere — as a thumbnail URL, or as a link to the photo page, which is
-   * what {{immich_url}} in the default local template provides. Local images
-   * inserted from a template with neither are not matched, because nothing in
+   * somewhere — as a thumbnail URL, as a link to the photo page, which is
+   * what {{immich_url}} in the default local template provides, or in a
+   * trailing `<!--immich: ...-->` comment, which is how a template keeps the
+   * embed itself plain for publish plugins that choke on a link wrapper. The
+   * comment is part of the matched range, so converting away from that
+   * format takes the now-stale backlink with it. Local images inserted from
+   * a template with none of the three are not matched, because nothing in
    * the note says which Immich asset they came from.
    *
    * Returns one entry per occurrence, sorted by position, with the source
@@ -407,11 +461,16 @@ export default class ImmichPicker extends Plugin {
     // the link half of the default local and shared templates.
     const idInUrl = new RegExp(`${escaped}/(?:api/assets|photos)/(${ASSET_ID})`, 'i')
 
+    // An immich backlink comment on the same line or the one below, which is
+    // where a template that emits one puts it. Confined to a single line, so
+    // an unterminated comment cannot swallow the rest of the note.
+    const BACKLINK = String.raw`(?:[ \t]*\r?\n?[ \t]*<!--\s*immich:[^\n]*?-->)?`
+
     // Widest construct first: a linked image has to claim the whole
     // [![](thumb)](photo) before the inner ![](thumb) is considered.
     const constructs = [
-      /\[!\[[^\]]*\]\([^)\n]*\)\]\([^)\n]*\)/g,
-      /!\[[^\]]*\]\([^)\n]*\)/g
+      new RegExp(String.raw`\[!\[[^\]]*\]\([^)\n]*\)\]\([^)\n]*\)` + BACKLINK, 'g'),
+      new RegExp(String.raw`!\[[^\]]*\]\([^)\n]*\)` + BACKLINK, 'g')
     ]
 
     const refs: ImmichReference[] = []
@@ -464,7 +523,11 @@ export default class ImmichPicker extends Plugin {
   }
 
   async loadSettings () {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<ImmichPickerSettings>)
+    const stored = await this.loadData() as (Partial<ImmichPickerSettings> & LegacySettings) | null
+    this.settings = Object.assign(cloneDefaultSettings(), stored)
+    normalizeTemplateSettings(this.settings, stored ?? undefined)
+    // The pre-1.2 single template now lives in the list; stop writing it back.
+    delete (this.settings as LegacySettings).thumbnailMarkdown
   }
 
   async saveSettings () {

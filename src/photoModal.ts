@@ -38,12 +38,16 @@ export class ImmichPickerModal extends Modal {
   hasMoreResults = true
   noteDate: moment.Moment | null = null
   selectedWidth = 0
+  selectedTemplateId: string
 
   constructor (app: App, plugin: ImmichPicker, editor: Editor, view: MarkdownView) {
     super(app)
     this.plugin = plugin
     this.editor = editor
     this.view = view
+    // Starts on whatever the folder rules picked for this note; the row in
+    // onOpen only exists to override that for a single insert.
+    this.selectedTemplateId = plugin.templateIdForPath(view.file?.path)
   }
 
   onOpen () {
@@ -120,6 +124,25 @@ export class ImmichPickerModal extends Modal {
         this.selectedWidth = size.value
         sizeRow.querySelectorAll('.immich-picker-size-bubble').forEach(b => b.removeClass('is-active'))
         bubble.addClass('is-active')
+      })
+    }
+
+    // Template selector. Remote mode writes a fixed format, and with a single
+    // template there is nothing to choose.
+    const templates = this.plugin.settings.outputTemplates
+    if (templates.length > 1 && this.plugin.settings.imageMode !== 'remote') {
+      const templateRow = contentEl.createDiv({ cls: 'immich-picker-size-row' })
+      templateRow.createSpan({ text: 'Format: ', cls: 'immich-picker-size-label' })
+      const select = templateRow.createEl('select', { cls: 'immich-picker-template-select' })
+      for (const template of templates) {
+        const option = select.createEl('option', {
+          text: template.name || 'Unnamed template',
+          value: template.id
+        })
+        if (template.id === this.selectedTemplateId) option.selected = true
+      }
+      select.addEventListener('change', () => {
+        this.selectedTemplateId = select.value
       })
     }
 
@@ -581,7 +604,8 @@ export class ImmichPickerModal extends Modal {
             description,
             origWidth,
             origHeight,
-            displayWidth: this.selectedWidth
+            displayWidth: this.selectedWidth,
+            templateId: this.selectedTemplateId
           })
         } else {
           const filename = creationTime.format(this.plugin.settings.filename)
@@ -597,7 +621,8 @@ export class ImmichPickerModal extends Modal {
             description,
             origWidth,
             origHeight,
-            displayWidth: this.selectedWidth
+            displayWidth: this.selectedWidth,
+            templateId: this.selectedTemplateId
           })
         }
 
@@ -649,7 +674,8 @@ export class ImmichPickerModal extends Modal {
           description,
           origWidth,
           origHeight,
-          displayWidth: this.selectedWidth
+          displayWidth: this.selectedWidth,
+          templateId: this.selectedTemplateId
         })
       } else {
         const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
@@ -665,7 +691,8 @@ export class ImmichPickerModal extends Modal {
           description,
           origWidth,
           origHeight,
-          displayWidth: this.selectedWidth
+          displayWidth: this.selectedWidth,
+          templateId: this.selectedTemplateId
         })
       }
 
