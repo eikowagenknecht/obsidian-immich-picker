@@ -1,0 +1,4 @@
+# The repository is uniformly LF. Without this, a tool that rewrites a file
+# on Windows can flip it to CRLF and turn a one-line edit into a whole-file
+# diff that buries the real change.
+* text=auto eol=lf
