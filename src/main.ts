@@ -8,6 +8,31 @@ import { ConversionModal } from './conversionModal'
 
 // No placeholder needed — remote mode uses code block syntax rendered by code block processor
 
+/** One Immich image reference found in note content, located by source range. */
+export interface ImmichReference {
+  /** Offset of the first character of the reference. */
+  start: number;
+  /** Offset just past the last character of the reference. */
+  end: number;
+  /** The matched source text. */
+  text: string;
+  assetId: string;
+}
+
+/**
+ * Applies replacements to `content` by source range.
+ * Splices back to front so earlier ranges keep their offsets, and so two
+ * identical references (the same image embedded twice) are rewritten
+ * independently rather than collapsing onto the first occurrence.
+ */
+export function applyReplacements (content: string, edits: { ref: ImmichReference, replacement: string }[]): string {
+  let result = content
+  for (const { ref, replacement } of [...edits].sort((a, b) => b.ref.start - a.ref.start)) {
+    result = result.slice(0, ref.start) + replacement + result.slice(ref.end)
+  }
+  return result
+}
+
 // Helper to access SecretStorage (available in Obsidian 1.11.0+)
 function getSecretStorage (app: Record<string, unknown>): { getSecret(id: string): string | null, setSecret(id: string, secret: string): void } | null {
   const storage = (app as Record<string, unknown>).secretStorage
@@ -363,23 +388,28 @@ export default class ImmichPicker extends Plugin {
   // --- Finding existing references ---
 
   /**
-   * Finds all remote Immich image references (any format) and returns matches with asset IDs.
+   * Finds all remote Immich image references (any format).
+   * Returns one entry per occurrence, sorted by position, with the source
+   * range so callers can rewrite each occurrence independently.
    */
-  findRemoteReferences (content: string): { fullMatch: string, assetId: string }[] {
+  findRemoteReferences (content: string): ImmichReference[] {
     const serverUrlEscaped = this.settings.serverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const patterns = [
       /```immich\n([a-f0-9-]+)\n```/gi,
       new RegExp(`!\\[\\]\\(${serverUrlEscaped}/api/assets/([a-f0-9-]+)/thumbnail[^)]*\\)`, 'gi')
     ]
-    const allMatches: { fullMatch: string, assetId: string }[] = []
+    const refs: ImmichReference[] = []
     for (const pattern of patterns) {
       for (const match of content.matchAll(pattern)) {
-        if (!allMatches.some(m => m.fullMatch === match[0])) {
-          allMatches.push({ fullMatch: match[0], assetId: match[1] })
-        }
+        refs.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          text: match[0],
+          assetId: match[1]
+        })
       }
     }
-    return allMatches
+    return refs.sort((a, b) => a.start - b.start)
   }
 
   getNoteDate (file: TFile): moment.Moment | null {

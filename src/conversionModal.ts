@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting, TFile } from 'obsidian'
-import ImmichPicker from './main'
+import ImmichPicker, { ImmichReference, applyReplacements } from './main'
 import { FolderSuggest } from './suggesters/FolderSuggester'
 
 type ScopeOption = 'note' | 'folder' | 'vault';
@@ -7,7 +7,7 @@ type TargetFormat = 'local' | 'server-url' | 'shared' | 'code-block';
 
 interface ScanResult {
   file: TFile;
-  matches: { fullMatch: string, assetId: string }[];
+  matches: ImmichReference[];
 }
 
 /**
@@ -226,10 +226,12 @@ export class ConversionModal extends Modal {
         const { file, matches } = this.scanResults[i]
         loadingNotice.setMessage(`Processing note ${i + 1}/${this.scanResults.length}...`)
 
-        let content = await this.app.vault.read(file)
+        const content = await this.app.vault.read(file)
         const noteFolder = file.path.split('/').slice(0, -1).join('/')
+        const edits: { ref: ImmichReference, replacement: string }[] = []
 
-        for (const { fullMatch, assetId } of matches) {
+        for (const ref of matches) {
+          const { assetId } = ref
           let replacement: string
 
           switch (this.targetFormat) {
@@ -259,16 +261,14 @@ export class ConversionModal extends Modal {
               replacement = '```immich\n' + assetId + '\n```'
               break
             default:
-              replacement = fullMatch
+              replacement = ref.text
           }
 
-          // Replacer function, not a string: `$&` and friends in a URL or
-          // filename would otherwise be expanded as substitution patterns.
-          content = content.replace(fullMatch, () => replacement)
+          edits.push({ ref, replacement })
           converted++
         }
 
-        await this.app.vault.modify(file, content)
+        await this.app.vault.modify(file, applyReplacements(content, edits))
       }
 
       loadingNotice.hide()
