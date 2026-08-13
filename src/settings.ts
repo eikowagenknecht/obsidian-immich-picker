@@ -1,5 +1,6 @@
 import { App, moment, Notice, Platform, PluginSettingTab, Setting } from 'obsidian'
 import { FolderSuggest } from './suggesters/FolderSuggester'
+import { clearImmichBlobCache } from './postProcessor'
 import ImmichPicker from './main'
 
 export type GetDateFromOption = 'none' | 'title' | 'frontmatter';
@@ -87,6 +88,8 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
           // Remove trailing slash
           this.plugin.settings.serverUrl = value.trim().replace(/\/+$/, '')
           await this.plugin.saveSettings()
+          // Cached thumbnails belong to the old server.
+          clearImmichBlobCache()
         }))
 
     const apiKeySetting = new Setting(containerEl)
@@ -100,6 +103,8 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         .setValue(currentKey)
         .onChange(async value => {
           await this.plugin.setApiKey(value.trim())
+          // Thumbnails fetched with the previous key may no longer be valid.
+          clearImmichBlobCache()
         }))
       apiKeySetting.then(setting => {
         setting.descEl.appendText('Generate in Immich under Account Settings > API Keys.')

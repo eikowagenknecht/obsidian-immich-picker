@@ -237,7 +237,9 @@ export class ImmichApi {
   }
 
   getSharedThumbnailUrl (assetId: string, shareKey: string): string {
-    return `${this.serverUrl}/api/assets/${assetId}/thumbnail?size=preview&key=${shareKey}`
+    // Same #.jpg hint as getThumbnailUrl, so Obsidian's parser treats a shared
+    // URL as an image too.
+    return `${this.serverUrl}/api/assets/${assetId}/thumbnail?size=preview&key=${shareKey}#.jpg`
   }
 
   extractAssetIdFromUrl (url: string): string | null {
