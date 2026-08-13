@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Obsidian Immich Picker" width="120" />
+  <img src="docs/logo.webp" alt="Obsidian Immich Picker" width="120" />
 </p>
 
 <h1 align="center">Obsidian Immich Picker</h1>
