@@ -327,8 +327,7 @@ export default class ImmichPicker extends Plugin {
    * If original dimensions are known and the image is already smaller than
    * maxSize, returns empty (no resize needed).
    */
-  getWidthAlt (origWidth?: number, origHeight?: number): string {
-    const maxSize = this.settings.displayWidth
+  getWidthAlt (origWidth?: number, origHeight?: number, maxSize = this.settings.displayWidth): string {
     if (maxSize <= 0) return ''
 
     // If we know the dimensions, skip sizing if image is already small enough
@@ -348,7 +347,9 @@ export default class ImmichPicker extends Plugin {
     takenDate: string,
     description: string,
     origWidth?: number,
-    origHeight?: number
+    origHeight?: number,
+    /** Overrides the display width setting for this one call. */
+    displayWidth?: number
   }): string {
     return handlebarParse(this.settings.thumbnailMarkdown, {
       local_thumbnail_link: params.linkPath,
@@ -358,7 +359,7 @@ export default class ImmichPicker extends Plugin {
       original_filename: params.originalFilename,
       taken_date: params.takenDate,
       description: params.description,
-      display_width: this.getWidthAlt(params.origWidth, params.origHeight)
+      display_width: this.getWidthAlt(params.origWidth, params.origHeight, params.displayWidth)
     })
   }
 
@@ -371,10 +372,12 @@ export default class ImmichPicker extends Plugin {
     assetId: string,
     origWidth?: number,
     origHeight?: number,
+    /** Overrides the display width setting for this one call. */
+    displayWidth?: number,
     format?: RemoteFormatOption
   }): string {
     const format = params.format || this.settings.remoteFormat || 'server-url'
-    const widthAlt = this.getWidthAlt(params.origWidth, params.origHeight)
+    const widthAlt = this.getWidthAlt(params.origWidth, params.origHeight, params.displayWidth)
 
     if (format === 'code-block') {
       // Same sizing decision as the alt text, so a code block and a server
@@ -391,7 +394,9 @@ export default class ImmichPicker extends Plugin {
     takenDate: string,
     description: string,
     origWidth?: number,
-    origHeight?: number
+    origHeight?: number,
+    /** Overrides the display width setting for this one call. */
+    displayWidth?: number
   }): Promise<string> {
     const sharedLink = await this.immichApi.createSharedLink(params.assetId)
     const sharedThumbnailUrl = this.immichApi.getSharedThumbnailUrl(params.assetId, sharedLink.key)
@@ -404,7 +409,7 @@ export default class ImmichPicker extends Plugin {
       original_filename: params.originalFilename,
       taken_date: params.takenDate,
       description: params.description,
-      display_width: this.getWidthAlt(params.origWidth, params.origHeight)
+      display_width: this.getWidthAlt(params.origWidth, params.origHeight, params.displayWidth)
     })
   }
 

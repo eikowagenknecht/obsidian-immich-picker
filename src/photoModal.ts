@@ -538,9 +538,6 @@ export class ImmichPickerModal extends Modal {
       return
     }
 
-    // Apply selected width from modal bubbles
-    this.plugin.settings.displayWidth = this.selectedWidth
-
     const isLocal = this.plugin.settings.imageMode === 'local'
     const loadingNotice = new Notice(`Inserting ${this.currentAlbumAssets.length} photos...`, 0)
 
@@ -575,7 +572,7 @@ export class ImmichPickerModal extends Modal {
         let linkText: string
 
         if (this.plugin.settings.imageMode === 'remote') {
-          linkText = this.plugin.generateRemoteMarkdown({ assetId: asset.id, origWidth, origHeight })
+          linkText = this.plugin.generateRemoteMarkdown({ assetId: asset.id, origWidth, origHeight, displayWidth: this.selectedWidth })
         } else if (this.plugin.settings.imageMode === 'shared') {
           linkText = await this.plugin.generateSharedMarkdown({
             assetId: asset.id,
@@ -583,7 +580,8 @@ export class ImmichPickerModal extends Modal {
             takenDate: creationTime.format(),
             description,
             origWidth,
-            origHeight
+            origHeight,
+            displayWidth: this.selectedWidth
           })
         } else {
           const filename = creationTime.format(this.plugin.settings.filename)
@@ -598,7 +596,8 @@ export class ImmichPickerModal extends Modal {
             takenDate: creationTime.format(),
             description,
             origWidth,
-            origHeight
+            origHeight,
+            displayWidth: this.selectedWidth
           })
         }
 
@@ -632,9 +631,6 @@ export class ImmichPickerModal extends Modal {
         return
       }
 
-      // Apply selected width from modal bubbles
-      this.plugin.settings.displayWidth = this.selectedWidth
-
       // Fetch asset details to get description
       const assetDetails = await this.plugin.immichApi.getAssetDetails(thumbnailImage.assetId)
       const description = assetDetails.exifInfo?.description || ''
@@ -644,7 +640,7 @@ export class ImmichPickerModal extends Modal {
       let linkText: string
 
       if (this.plugin.settings.imageMode === 'remote') {
-        linkText = this.plugin.generateRemoteMarkdown({ assetId: thumbnailImage.assetId, origWidth, origHeight })
+        linkText = this.plugin.generateRemoteMarkdown({ assetId: thumbnailImage.assetId, origWidth, origHeight, displayWidth: this.selectedWidth })
       } else if (this.plugin.settings.imageMode === 'shared') {
         linkText = await this.plugin.generateSharedMarkdown({
           assetId: thumbnailImage.assetId,
@@ -652,7 +648,8 @@ export class ImmichPickerModal extends Modal {
           takenDate: thumbnailImage.creationTime.format(),
           description,
           origWidth,
-          origHeight
+          origHeight,
+          displayWidth: this.selectedWidth
         })
       } else {
         const noteFolder = noteFile.path.split('/').slice(0, -1).join('/')
@@ -667,7 +664,8 @@ export class ImmichPickerModal extends Modal {
           takenDate: thumbnailImage.creationTime.format(),
           description,
           origWidth,
-          origHeight
+          origHeight,
+          displayWidth: this.selectedWidth
         })
       }
 
