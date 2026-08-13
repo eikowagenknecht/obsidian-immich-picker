@@ -201,6 +201,9 @@ export class ConversionModal extends Modal {
 
     const loadingNotice = new Notice(`Converting ${this.totalImages} images...`, 0)
     let converted = 0
+    // Filenames handed out during this run, so images that share a timestamp
+    // don't overwrite each other before they exist on disk.
+    const reservedPaths = new Set<string>()
 
     try {
       for (let i = 0; i < this.scanResults.length; i++) {
@@ -215,9 +218,12 @@ export class ConversionModal extends Modal {
 
           switch (this.targetFormat) {
             case 'local': {
-              const creationTime = window.moment()
+              // Name after the photo's own date, as the picker does. Falling back
+              // to now would give every image in the batch the same filename.
+              const details = await this.plugin.immichApi.getAssetDetails(assetId)
+              const creationTime = details.fileCreatedAt ? window.moment(details.fileCreatedAt) : window.moment()
               const filename = creationTime.format(this.plugin.settings.filename)
-              const { thumbnailFolder, linkPath, savePath } = this.plugin.computeThumbnailPaths(noteFolder, filename)
+              const { thumbnailFolder, linkPath, savePath } = await this.plugin.computeFreeThumbnailPaths(noteFolder, filename, reservedPaths)
               await this.plugin.ensureFolderExists(thumbnailFolder)
               await this.plugin.saveThumbnailToVault(assetId, savePath)
               const useWikilinks = !(this.app.vault as unknown as { getConfig(key: string): unknown }).getConfig('useMarkdownLinks')
@@ -240,7 +246,9 @@ export class ConversionModal extends Modal {
               replacement = fullMatch
           }
 
-          content = content.replace(fullMatch, replacement)
+          // Replacer function, not a string: `$&` and friends in a URL or
+          // filename would otherwise be expanded as substitution patterns.
+          content = content.replace(fullMatch, () => replacement)
           converted++
         }
 

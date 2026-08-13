@@ -424,6 +424,30 @@ export default class ImmichPicker extends Plugin {
     return { thumbnailFolder, linkPath, savePath }
   }
 
+  /**
+   * Like computeThumbnailPaths, but guarantees the filename is free.
+   * Appends -1, -2, ... before the extension until the save path collides with
+   * neither an existing file nor a name already handed out via `reserved`.
+   * Needed for batch operations, where every image can otherwise format to the
+   * same filename and silently overwrite the previous one.
+   */
+  async computeFreeThumbnailPaths (noteFolder: string, filename: string, reserved?: Set<string>): Promise<{ thumbnailFolder: string, linkPath: string, savePath: string }> {
+    const dot = filename.lastIndexOf('.')
+    const stem = dot > 0 ? filename.slice(0, dot) : filename
+    const ext = dot > 0 ? filename.slice(dot) : ''
+
+    let candidate = filename
+    for (let n = 1; ; n++) {
+      const paths = this.computeThumbnailPaths(noteFolder, candidate)
+      const clashes = reserved?.has(paths.savePath) || await this.app.vault.adapter.exists(paths.savePath)
+      if (!clashes) {
+        reserved?.add(paths.savePath)
+        return paths
+      }
+      candidate = `${stem}-${n}${ext}`
+    }
+  }
+
   async ensureFolderExists (folderPath: string): Promise<void> {
     if (folderPath && !await this.app.vault.adapter.exists(folderPath)) {
       await this.app.vault.createFolder(folderPath)
