@@ -701,10 +701,14 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     this.rebuild()
   }
 
-  /** Redraws the tab after the definitions themselves changed. */
+  /**
+   * Re-reads getSettingDefinitions() after the definitions themselves changed
+   * — a template added or removed changes how many rows there are, and which
+   * of the dependent groups are visible at all. update() is the only thing
+   * that refreshes a declarative tab; display() is deprecated and does not.
+   */
   private rebuild (): void {
     this.update()
-    this.display()
   }
 
   /** Remote mode writes a fixed format, so there is nothing to edit. */
@@ -804,8 +808,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     // Image mode adds and removes whole groups, so the definitions have to be
     // rebuilt. The rest only drive `visible` predicates already in the DOM.
     if (key === 'imageMode' || key === 'remoteFormat') {
-      this.update()
-      this.display()
+      this.rebuild()
     } else if (key === 'getDateFrom' || key === 'locationOption') {
       this.refreshDomState()
     }
