@@ -18,11 +18,6 @@ main.js
 # obsidian
 data.json
 
-# Local test vault config. The notes are tracked; the vault's own settings and
-# the plugin build copied into it are not — that copy of styles.css only drifts
-# out of sync with the real one at the repo root.
-test-vault/.obsidian/
-
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 

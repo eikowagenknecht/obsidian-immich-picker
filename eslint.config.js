@@ -3,10 +3,7 @@ import tseslint from 'typescript-eslint'
 
 export default [
   {
-    // test-vault holds a local Obsidian vault for manual testing. Installing
-    // the plugin into it puts a copy of the bundled main.js there, which the
-    // bare 'main.js' entry below does not match.
-    ignores: ['node_modules/**', 'main.js', 'test-vault/**', 'eslint.config.js', '*.mjs']
+    ignores: ['node_modules/**', 'main.js', 'eslint.config.js', '*.mjs']
   },
   ...tseslint.configs.recommended,
   {
