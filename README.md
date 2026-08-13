@@ -1,19 +1,10 @@
-<p align="center">
-  <img src="docs/logo.webp" alt="Obsidian Immich Picker" width="120" />
-</p>
+# Obsidian Immich Picker
 
-<h1 align="center">Obsidian Immich Picker</h1>
+<img src="docs/logo.webp" alt="" width="120" />
 
-<p align="center">
-  Insert images from a self-hosted <a href="https://immich.app/">Immich</a> photo server into your Obsidian notes.<br/>
-  Browse, search, and embed photos with flexible storage options.
-</p>
+An Obsidian plugin to insert images from a self-hosted [Immich](https://immich.app/) photo server. Pick photos from your recent uploads and embed them directly into your notes.
 
-<p align="center">
-  Adapted from <a href="https://github.com/alangrainger/obsidian-google-photos">obsidian-google-photos</a> by Alan Grainger.
-</p>
-
----
+Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-google-photos) for Immich. I created this as an alternative to [his Templater script](https://github.com/almarber/immich-templater-script).
 
 ![Photo selection modal](docs/screenshot-photos.webp)
 
@@ -21,70 +12,19 @@
 
 ## Features
 
-- **Photo Picker**: Browse and select from your recent Immich photos via command palette
-- **Smart Search**: Search using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
-- **Album Browsing**: Browse albums, view contents, insert single photos or entire albums
+- **Photo Picker**: Command palette action to browse and select from your recent Immich photos
+- **Smart Search**: Search your photos using Immich's AI-powered CLIP search (e.g., "beach sunset", "birthday party")
+- **Album Browsing**: Browse your Immich albums, view album contents, and insert single photos or entire albums at once
 - **Date Filtering**: Detect dates from note titles or frontmatter and show photos from that day
-- **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded images
-- **Three Image Modes**: Local thumbnails, remote server links, or public shared links
-- **Bulk Conversion**: Convert images between formats by note, folder, tag, or entire vault
-- **Secure API Key Storage**: Uses OS credential manager on Obsidian 1.11+, falls back to plugin data on older versions
-
-## Image Lifecycle
-
-Images don't just live in Obsidian. You might publish to a blog, share markdown files, migrate to another app, or process notes with scripts. This plugin gives you control over how images are stored and lets you convert between formats as your needs change.
-
-```
-                    +-------------+
-                    |   Immich    |
-                    |   Server   |
-                    +------+------+
-                           |
-              +------------+------------+
-              v            v            v
-        +----------+ +----------+ +----------+
-        |  Local   | |  Remote  | |  Shared  |
-        | Download | |  Server  | |  Public  |
-        |          | |  Link    | |  Link    |
-        +----+-----+ +----+-----+ +----+-----+
-             |            |            |
-             v            v            v
-        In vault     Standard MD   Public URL
-        offline      needs plugin  works anywhere
-             |            |            |
-             +------------+------------+
-                          |
-                 Convert between formats
-                 (by note, folder, tag, vault)
-                          |
-              +-----------+-----------+
-              v           v           v
-         Export to    Share with   Migrate to
-         blog/CMS    colleagues   other apps
-```
-
-### Image Modes
-
-| Mode | How it works | Best for |
-|------|-------------|----------|
-| **Local** | Downloads thumbnail to your vault | Offline access, migration, publishing |
-| **Remote** | Standard markdown link to Immich server, plugin authenticates at render time | Saving vault space, large photo collections |
-| **Shared** | Creates public Immich shared link | Sharing notes with others, publishing |
-
-### Converting Between Formats
-
-Use the **Convert Immich images** command (Ctrl/Cmd+P) to open the conversion modal:
-
-- **Scope**: Current note, a folder, notes with a specific tag, or entire vault
-- **Target format**: Local thumbnails, server link, shared link, or code block
-- **Preview**: Scan first to see how many images will be converted
-
-This lets you keep images remote for daily use, then batch-convert to local when exporting or to shared links when publishing.
+- **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
+- **Image Modes**: Store images as local thumbnails, as links to your server, or as public shared links, and convert between them in bulk
+- **Local & Public URLs**: Works with both local network URLs (e.g., `http://nas:2283`) and public URLs (e.g., `https://immich.example.com`)
+- **Secure**: API key is stored in your OS credential manager on Obsidian 1.11+, never embedded in your notes
 
 ## Requirements
 
 - A self-hosted [Immich](https://immich.app/) server
-- An Immich API key with permissions:
+- An Immich API key with the following permissions:
   - `asset.read` - for searching photos
   - `asset.view` - for downloading thumbnails
   - `album.read` - for browsing albums (optional)
@@ -96,82 +36,91 @@ This lets you keep images remote for daily use, then batch-convert to local when
 ### Using BRAT (Recommended)
 
 1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat) if you haven't already
-2. Open Obsidian Settings > BRAT
+2. Open Obsidian Settings → BRAT
 3. Click "Add Beta plugin"
 4. Enter: `eikowagenknecht/obsidian-immich-picker`
-5. Enable the plugin in Settings > Community Plugins
+5. Enable the plugin in Settings → Community Plugins
 
 ### Manual Installation
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/eikowagenknecht/obsidian-immich-picker/releases)
 2. Create a folder named `immich-picker` in your vault's `.obsidian/plugins/` directory
 3. Copy the downloaded files into this folder
-4. Reload Obsidian and enable the plugin in Settings > Community Plugins
+4. Reload Obsidian and enable the plugin in Settings → Community Plugins
 
 ## Setup
 
-1. Open Settings > Immich Picker
+1. Open Settings → Immich Picker
 2. Enter your Immich server URL (e.g., `https://immich.example.com`)
-3. Enter your API key (create one in Immich under Account Settings > API Keys)
+3. Enter your API key (create one in Immich under Account Settings → API Keys)
 4. Click "Test Connection" to verify
 
 On Obsidian 1.11+, your API key is stored securely in your OS credential manager (Keychain on macOS, Credential Manager on Windows, libsecret on Linux). On older versions, it's stored in the plugin's data file.
 
 ## Usage
 
-### Insert a Photo
+### Insert Photo via Command
 
 1. Open the command palette (<kbd>Ctrl/Cmd</kbd> + <kbd>P</kbd>)
 2. Search for "Insert image from Immich"
-3. Browse recent photos, search, or browse albums
-4. Click a photo to insert it
-
-### Choose an Image Mode
-
-In Settings > Immich Picker > Image mode:
-
-- **Download to vault** (default): Saves a thumbnail file locally. Works offline, standard image embedding.
-- **Load from Immich server**: Inserts a standard markdown image link. The plugin authenticates and loads the image at render time. No files saved to your vault.
-- **Use Immich shared links**: Creates a public shared link in Immich. The image URL works anywhere without the plugin.
+3. Click on a photo to insert it
 
 ### Browse Albums
 
-1. Open the photo picker
-2. Click "Albums" (requires `album.read` permission)
-3. Browse albums sorted by most recently updated
-4. Click a photo to insert it, or "Insert all" for the entire album
+1. Open the photo picker via command palette
+2. Click the "Albums" button (requires `album.read` permission)
+3. Browse your albums sorted by most recently updated
+4. Click an album to view its photos
+5. Click a photo to insert it, or use "Insert all" to insert the entire album
 
 ### Filter by Note Date
 
-If your note has a date in its title (e.g., `2024-01-15.md`) or frontmatter:
+If your note has a date in its title (e.g., `2024-01-15.md`) or frontmatter, the picker will suggest photos from that date:
 
-1. Configure date detection in Settings > Note Date Detection
+1. Configure date detection in Settings → Note Date Detection
 2. Open the photo picker on a note with a detectable date
-3. A banner appears suggesting photos from that date
+3. A banner appears: "📅 Show photos from January 15, 2024?"
+4. Click the banner to see all photos taken on that day
+
+This is especially useful for daily notes or journal entries.
 
 ### Paste Immich URL
 
-Copy a photo URL from Immich (e.g., `https://immich.example.com/photos/abc-123`) and paste it into your note. The plugin will automatically convert it based on your current image mode setting.
+When you copy a photo URL from Immich (e.g., `https://immich.example.com/photos/abc-123`) and paste it into your note, the plugin will:
+
+1. Detect the Immich URL
+2. Download the thumbnail from your server
+3. Save it locally using your configured settings
+4. Insert the markdown with a clickable thumbnail linking to the original
+
+This can be disabled in settings if you prefer to paste plain URLs.
+
+### Choose How Images Are Stored
+
+The **Image mode** setting controls what the plugin writes into your note:
+
+| Mode | What it inserts | Notes |
+|---------|-------------|---------|
+| Local (default) | A thumbnail downloaded into your vault | Works offline and survives export |
+| Remote | A markdown link to your Immich server | Nothing saved to your vault, but the plugin has to be installed to see the image |
+| Shared | An Immich shared link | The URL works anywhere, and is readable by anyone who has it |
 
 ### Convert Between Formats
 
-Open the command palette and search for **"Convert Immich images"** to open the conversion modal:
+To move existing images from one mode to another, run "Convert Immich images" from the command palette:
 
-1. Choose a **scope**: current note, folder, tag, or entire vault
-2. Choose a **target format**: local thumbnails, server link, shared link, or code block
-3. Click **Scan** to preview how many images will be converted
-4. Click **Convert** to process
+1. Choose a scope: current note, a folder, notes with a given tag, or the whole vault
+2. Choose the target format
+3. Click "Scan" to see how many images will be converted
+4. Click "Convert"
 
-Quick single-note commands are also available:
-- **Convert remote images to current format** (current note)
-- **Convert remote images to local thumbnails** (current note)
+Converting to shared links asks for confirmation first, since those URLs are public and do not expire.
+
+There are also two commands that act on the current note only: "Convert remote images to current format" and "Convert remote images to local thumbnails".
 
 ### Mobile
 
-All features work on mobile. For quick access, add commands to your mobile toolbar:
-
-1. Go to **Settings > Toolbar**
-2. Add "Insert image from Immich" for one-tap photo insertion
+Everything works on mobile. The plugin adds a ribbon icon, reachable from the hamburger menu. To put it on the toolbar above the keyboard instead, go to Settings → Toolbar, tap +, and search for "Immich".
 
 The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also add Immich commands to the ribbon, context menus, and page headers.
 
@@ -180,31 +129,33 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 | Setting | Description | Default |
 |---------|-------------|---------|
 | Server URL | Your Immich server URL | - |
-| API Key | Your Immich API key (stored securely on Obsidian 1.11+) | - |
-| Image mode | How images are stored: local, remote, or shared | Local |
-| Remote format | Server link (standard markdown) or code block | Server link |
-| Photos per page | Photos loaded at a time | 9 |
-| Grid columns | Columns in the photo grid | 3 |
-| Date detection | Extract date from note title or frontmatter | Disabled |
-| Thumbnail dimensions | Max width/height for local thumbnails | 400x280 |
-| Storage location | Where to save local thumbnails | Same folder as note |
-| Filename format | MomentJS format for saved files | `immich_YYYY-MM-DD--HH-mm-ss.jpg` |
-| Markdown template | Output format for inserted images (local/shared modes) | `[![]({{local_thumbnail_link}})]({{immich_url}})` |
-| Convert pasted links | Auto-convert pasted Immich URLs | Enabled |
+| API Key | Your Immich API key | - |
+| Image mode | How images are stored (Local/Remote/Shared) | Local |
+| Remote image format | Server link or code block, for remote mode | Server link |
+| Render in edit mode | Show remote images inline while editing | Enabled |
+| Display width | Default width for inserted images | Original size |
+| Photos per page | Photos loaded at a time (recent, search, pagination) | 9 |
+| Grid columns | Number of columns in the photo grid | 3 |
+| Get date from | Where to extract date for filtering (Disabled/Note title/Frontmatter) | Disabled |
+| Date format | MomentJS format for parsing dates | `YYYY-MM-DD` |
+| Frontmatter key | Property name containing the date | `date` |
+| Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
+| Location | Where to save thumbnails | Same folder as note |
+| Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |
+| Markdown template | Output format for inserted images | `[![]({{local_thumbnail_link}})]({{immich_url}})` |
+| Convert pasted Immich links | Auto-convert pasted URLs to thumbnails | Enabled |
 
 ### Template Variables
 
-| Variable | Description |
-|----------|-------------|
-| `{{local_thumbnail_link}}` | Path to the local thumbnail |
-| `{{immich_thumbnail_url}}` | Direct thumbnail URL from the server |
-| `{{immich_url}}` | URL to the photo in Immich |
-| `{{immich_asset_id}}` | The Immich asset ID |
-| `{{original_filename}}` | Original filename from Immich |
-| `{{taken_date}}` | Date the photo was taken |
-| `{{description}}` | Photo description from Immich |
+- `{{local_thumbnail_link}}` - Path to the local thumbnail
+- `{{immich_thumbnail_url}}` - Direct thumbnail URL on the server
+- `{{immich_url}}` - URL to the photo in Immich
+- `{{immich_asset_id}}` - The Immich asset ID
+- `{{original_filename}}` - Original filename from Immich
+- `{{taken_date}}` - Date the photo was taken
+- `{{description}}` - Photo description from Immich
 
-Template presets are available in settings with recommendations based on your vault's link format (markdown vs wikilinks).
+The settings tab offers a few presets for this, picked to match whether your vault uses markdown links or wikilinks.
 
 ## Development
 
@@ -221,27 +172,6 @@ npm run build
 # Lint
 npm run lint
 ```
-
-## Companion Plugins
-
-These plugins work well alongside Immich Picker for image management:
-
-| Plugin | What it adds |
-|--------|-------------|
-| [Image Converter](https://github.com/xRyul/obsidian-image-converter) | Drag-to-resize, compress, convert formats, batch processing, annotations |
-| [Pixel Perfect Image](https://github.com/johansan/pixel-perfect-image) | Context menu resizing, scroll wheel zoom, percentage presets |
-| [Image Toolkit](https://github.com/sissilab/obsidian-image-toolkit) | Full-screen preview, zoom, rotate, flip, pin multiple images |
-
-Immich Picker inserts standard markdown image syntax that these plugins can enhance with visual resizing controls. You can also set a default display width in Immich Picker settings to control the initial size of inserted images.
-
-## Roadmap
-
-Planned features for future releases:
-
-- **Visual size picker**: Click-to-choose image dimensions at insertion time with a visual grid overlay showing the photo at different preset sizes
-- **Folder/file context menu**: Right-click a folder or file to convert all Immich images within
-- **Mobile optimization**: Improved touch-friendly UI for the photo picker and conversion modal
-- **Immich Public Proxy support**: Direct integration with [immich-public-proxy](https://github.com/alangrainger/immich-public-proxy) for secure public sharing
 
 ## Attribution
 
