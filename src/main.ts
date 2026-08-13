@@ -280,12 +280,19 @@ export default class ImmichPicker extends Plugin {
    * same filename and silently overwrite the previous one.
    */
   async computeFreeThumbnailPaths (noteFolder: string, filename: string, reserved?: Set<string>): Promise<{ thumbnailFolder: string, linkPath: string, savePath: string }> {
+    if (!filename) {
+      throw new Error('Image filename format produced an empty filename — check it in settings')
+    }
+
     const dot = filename.lastIndexOf('.')
     const stem = dot > 0 ? filename.slice(0, dot) : filename
     const ext = dot > 0 ? filename.slice(dot) : ''
 
     let candidate = filename
-    for (let n = 1; ; n++) {
+    // Bounded: a format with no time component gives every image in a batch
+    // the same name, and without a ceiling a wedged suffix search would hang
+    // Obsidian rather than surface the bad setting.
+    for (let n = 1; n <= 10000; n++) {
       const paths = this.computeThumbnailPaths(noteFolder, candidate)
       const clashes = reserved?.has(paths.savePath) || await this.app.vault.adapter.exists(paths.savePath)
       if (!clashes) {
@@ -294,6 +301,7 @@ export default class ImmichPicker extends Plugin {
       }
       candidate = `${stem}-${n}${ext}`
     }
+    throw new Error(`Could not find a free filename for "${filename}" — check the image filename format in settings`)
   }
 
   async ensureFolderExists (folderPath: string): Promise<void> {
