@@ -197,7 +197,7 @@ export class ConversionModal extends Modal {
     cancelBtn.addEventListener('click', () => { this.close() })
   }
 
-  async getFilesInScope (): Promise<TFile[]> {
+  getFilesInScope (): TFile[] {
     switch (this.selectedScope) {
       case 'note': {
         const activeFile = this.app.workspace.getActiveFile()
@@ -207,7 +207,7 @@ export class ConversionModal extends Modal {
         if (!this.selectedFolder) return []
         const folderPath = this.selectedFolder.replace(/\/+$/, '')
         return this.app.vault.getMarkdownFiles()
-          .filter(f => f.path.startsWith(folderPath + '/') || f.path === folderPath)
+          .filter(f => f.path.startsWith(folderPath + '/'))
       }
       case 'vault':
         return this.app.vault.getMarkdownFiles()
@@ -217,7 +217,7 @@ export class ConversionModal extends Modal {
   }
 
   async scan (): Promise<void> {
-    const files = await this.getFilesInScope()
+    const files = this.getFilesInScope()
 
     if (files.length === 0) {
       this.scanResults = []
@@ -231,7 +231,9 @@ export class ConversionModal extends Modal {
     this.totalImages = 0
 
     for (const file of files) {
-      const content = await this.app.vault.read(file)
+      // cachedRead: the scan never writes, and the vault scope reads every
+      // markdown file in the vault.
+      const content = await this.app.vault.cachedRead(file)
       const matches = this.plugin.findRemoteReferences(content)
       if (matches.length > 0) {
         this.scanResults.push({ file, matches })
@@ -275,9 +277,10 @@ export class ConversionModal extends Modal {
         const { file, matches } = this.scanResults[i]
         loadingNotice.setMessage(`Processing note ${i + 1}/${this.scanResults.length}...`)
 
-        const content = await this.app.vault.read(file)
+        const content = await this.app.vault.cachedRead(file)
         const noteFolder = file.path.split('/').slice(0, -1).join('/')
         const edits: { ref: ImmichReference, replacement: string }[] = []
+        const freed: TFile[] = []
 
         for (const ref of matches) {
           const { assetId } = ref
@@ -286,7 +289,7 @@ export class ConversionModal extends Modal {
           // downloaded thumbnail behind with nothing pointing at it.
           if (this.targetFormat !== 'local') {
             const existing = this.localFileFor(ref, file.path)
-            if (existing) orphans.set(existing.path, existing)
+            if (existing) freed.push(existing)
           }
           // Go through the same generators the picker uses, so a converted
           // image is indistinguishable from a freshly inserted one — same
@@ -350,10 +353,23 @@ export class ConversionModal extends Modal {
           }
 
           edits.push({ ref, replacement: fitToSurroundings(content, ref, replacement) })
-          converted++
         }
 
-        await this.app.vault.modify(file, applyReplacements(content, edits))
+        // process() reads and writes under one lock, so a note being edited
+        // while the batch runs cannot lose the edit or the conversion.
+        let applied = 0
+        await this.app.vault.process(file, data => {
+          const result = applyReplacements(data, edits)
+          applied = result.applied
+          return result.text
+        })
+        converted += applied
+
+        // Only offer to delete thumbnails when every reference in the note was
+        // rewritten. If any was stale the note still points at some of them.
+        if (applied === edits.length) {
+          for (const f of freed) orphans.set(f.path, f)
+        }
       }
 
       loadingNotice.hide()

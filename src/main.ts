@@ -24,13 +24,23 @@ export interface ImmichReference {
  * Splices back to front so earlier ranges keep their offsets, and so two
  * identical references (the same image embedded twice) are rewritten
  * independently rather than collapsing onto the first occurrence.
+ *
+ * A range whose text no longer matches what was found there is skipped: the
+ * note has been edited since it was scanned, and the offsets can no longer be
+ * trusted. `applied` reports how many actually landed.
  */
-export function applyReplacements (content: string, edits: { ref: ImmichReference, replacement: string }[]): string {
-  let result = content
+export function applyReplacements (
+  content: string,
+  edits: { ref: ImmichReference, replacement: string }[]
+): { text: string, applied: number } {
+  let text = content
+  let applied = 0
   for (const { ref, replacement } of [...edits].sort((a, b) => b.ref.start - a.ref.start)) {
-    result = result.slice(0, ref.start) + replacement + result.slice(ref.end)
+    if (text.slice(ref.start, ref.end) !== ref.text) continue
+    text = text.slice(0, ref.start) + replacement + text.slice(ref.end)
+    applied++
   }
-  return result
+  return { text, applied }
 }
 
 // Helper to access SecretStorage (available in Obsidian 1.11.0+)
