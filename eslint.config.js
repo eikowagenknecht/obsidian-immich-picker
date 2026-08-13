@@ -7,7 +7,7 @@ export default [
     // their own built main.js. Plain 'main.js' only matches at the root.
     ignores: ['node_modules/**', '.claude/**', '**/main.js', 'eslint.config.js', '*.mjs']
   },
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
   {
     files: ['**/*.ts'],
     plugins: {
@@ -15,14 +15,14 @@ export default [
     },
     languageOptions: {
       parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname
+        projectService: true
       },
       globals: {
         console: 'readonly',
         createDiv: 'readonly',
         createEl: 'readonly',
         createSpan: 'readonly',
+        createFragment: 'readonly',
         activeDocument: 'readonly',
         activeWindow: 'readonly',
         window: 'readonly',
@@ -42,11 +42,13 @@ export default [
           '^asset\\.view$',
           '^album\\.read$',
           '^local_thumbnail_link -',
+          '^immich_thumbnail_url -',
           '^immich_url -',
           '^immich_asset_id -',
           '^original_filename -',
           '^taken_date -',
-          '^description -'
+          '^description -',
+          '^display_width -'
         ]
       }],
       'no-new': 'off',

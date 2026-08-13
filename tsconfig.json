@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": "src",
+    "skipLibCheck": true,
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",

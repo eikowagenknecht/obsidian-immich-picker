@@ -19,7 +19,7 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 - **Paste URL Conversion**: Automatically converts pasted Immich photo URLs into embedded thumbnails
 - **Image Modes**: Store images as local thumbnails, as links to your server, or as public shared links, and convert between them in bulk
 - **Local & Public URLs**: Works with both local network URLs (e.g., `http://nas:2283`) and public URLs (e.g., `https://immich.example.com`)
-- **Secure**: API key is stored in your OS credential manager on Obsidian 1.11+, never embedded in your notes
+- **Secure**: API key is stored in your OS credential manager, never embedded in your notes
 
 ## Requirements
 
@@ -55,7 +55,7 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 3. Enter your API key (create one in Immich under Account Settings → API Keys)
 4. Click "Test Connection" to verify
 
-On Obsidian 1.11+, your API key is stored securely in your OS credential manager (Keychain on macOS, Credential Manager on Windows, libsecret on Linux). On older versions, it's stored in the plugin's data file.
+Your API key is stored in your OS credential manager (Keychain on macOS, Credential Manager on Windows, libsecret on Linux), not in the plugin's data file. A key saved by an older version is migrated automatically on first load.
 
 ## Usage
 

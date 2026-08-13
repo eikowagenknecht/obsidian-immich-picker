@@ -43,14 +43,8 @@ export function applyReplacements (
   return { text, applied }
 }
 
-// Helper to access SecretStorage (available in Obsidian 1.11.0+)
-function getSecretStorage (app: Record<string, unknown>): { getSecret(id: string): string | null, setSecret(id: string, secret: string): void } | null {
-  const storage = (app as Record<string, unknown>).secretStorage
-  if (storage && typeof storage === 'object' && 'getSecret' in storage && 'setSecret' in storage) {
-    return storage as { getSecret(id: string): string | null, setSecret(id: string, secret: string): void }
-  }
-  return null
-}
+/** Credential-manager entry holding the Immich API key. */
+const API_KEY_SECRET = 'immich-api-key'
 
 export default class ImmichPicker extends Plugin {
   settings: ImmichPickerSettings
@@ -113,6 +107,8 @@ export default class ImmichPicker extends Plugin {
     // Register paste handler for Immich URL conversion
     this.registerEvent(
       this.app.workspace.on('editor-paste', async (evt: ClipboardEvent, editor: Editor, view: MarkdownView) => {
+        // Another handler already dealt with this paste
+        if (evt.defaultPrevented) return
         if (!this.settings.convertPastedLink) return
         if (!this.settings.serverUrl || !this.cachedApiKey) return
 
@@ -184,68 +180,36 @@ export default class ImmichPicker extends Plugin {
     clearImmichBlobCache()
   }
 
-  // --- SecretStorage ---
+  // --- API key storage ---
+  //
+  // The key lives in the OS credential manager rather than data.json.
+  // app.secretStorage is available from Obsidian 1.11.4 and manifest.json
+  // requires 1.13.0, so there is no fallback path to maintain.
 
-  hasSecretStorage (): boolean {
-    return getSecretStorage(this.app as unknown as Record<string, unknown>) != null
-  }
-
-  async getApiKey (): Promise<string> {
-    if (this.cachedApiKey) return this.cachedApiKey
-
-    const storage = getSecretStorage(this.app as unknown as Record<string, unknown>)
-    if (storage) {
-      try {
-        const secret = storage.getSecret('immich-api-key')
-        if (secret) {
-          this.cachedApiKey = secret
-          return secret
-        }
-      } catch {
-        // Fall through to settings
-      }
+  getApiKey (): string {
+    if (!this.cachedApiKey) {
+      this.cachedApiKey = this.app.secretStorage.getSecret(API_KEY_SECRET) || ''
     }
-
-    this.cachedApiKey = this.settings.apiKey
     return this.cachedApiKey
   }
 
   async setApiKey (apiKey: string): Promise<void> {
     this.cachedApiKey = apiKey
+    this.app.secretStorage.setSecret(API_KEY_SECRET, apiKey)
 
-    const storage = getSecretStorage(this.app as unknown as Record<string, unknown>)
-    if (storage) {
-      try {
-        storage.setSecret('immich-api-key', apiKey)
-        // Clear from plain-text settings
-        this.settings.apiKey = ''
-        await this.saveSettings()
-        return
-      } catch {
-        // Fall through to settings
-      }
+    // An older version may have left a copy in the plain-text data file.
+    if (this.settings.apiKey) {
+      this.settings.apiKey = ''
+      await this.saveSettings()
     }
-
-    this.settings.apiKey = apiKey
-    await this.saveSettings()
   }
 
   private async initApiKey (): Promise<void> {
-    // Migrate from data.json to secretStorage if available
-    const storage = getSecretStorage(this.app as unknown as Record<string, unknown>)
-    if (storage && this.settings.apiKey) {
-      try {
-        storage.setSecret('immich-api-key', this.settings.apiKey)
-        this.cachedApiKey = this.settings.apiKey
-        this.settings.apiKey = ''
-        await this.saveSettings()
-        return
-      } catch {
-        // Fall through
-      }
+    if (this.settings.apiKey) {
+      await this.setApiKey(this.settings.apiKey)
+      return
     }
-
-    await this.getApiKey()
+    this.getApiKey()
   }
 
   // --- Path computation ---

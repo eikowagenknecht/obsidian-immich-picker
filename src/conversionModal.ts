@@ -28,21 +28,6 @@ function fitToSurroundings (content: string, ref: ImmichReference, replacement: 
 }
 
 /**
- * Moves a file to trash, honouring the user's "Deleted files" preference.
- * FileManager.trashFile arrived in Obsidian 1.6.6; below that fall back to the
- * system trash, which is recoverable either way.
- */
-async function trashFile (app: App, file: TFile): Promise<void> {
-  const fileManager = app.fileManager as Partial<typeof app.fileManager>
-  if (typeof fileManager.trashFile === 'function') {
-    await fileManager.trashFile(file)
-    return
-  }
-  // eslint-disable-next-line obsidianmd/prefer-file-manager-trash-file -- preferred path taken above; this is the pre-1.6.6 fallback
-  await app.vault.trash(file, true)
-}
-
-/**
  * Asks before something the plugin cannot undo. Resolves false unless the
  * user picks the confirm button, so dismissing the dialog is always the safe
  * outcome.
@@ -423,7 +408,8 @@ export class ConversionModal extends Modal {
     let deleted = 0
     for (const file of orphans.values()) {
       try {
-        await trashFile(this.app, file)
+        // trashFile honours the user's "Deleted files" preference.
+        await this.app.fileManager.trashFile(file)
         deleted++
       } catch (e) {
         console.error(`Failed to delete ${file.path}:`, e)

@@ -22,8 +22,7 @@ export class GridView {
     this.plugin = options.plugin
     this.scrollEl = options.scrollEl
     this.onThumbnailClick = options.onThumbnailClick
-    this.containerEl = document.createElement('div')
-    this.containerEl.classList.add('immich-picker-grid')
+    this.containerEl = createDiv({ cls: 'immich-picker-grid' })
     this.containerEl.style.gridTemplateColumns = `repeat(${this.plugin.settings.gridColumns}, 1fr)`
   }
 

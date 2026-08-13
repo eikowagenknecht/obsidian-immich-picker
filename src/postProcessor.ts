@@ -16,7 +16,7 @@ export function clearImmichBlobCache (): void {
 
 export function registerImmichPostProcessor (plugin: ImmichPicker): void {
   // Code block processor: renders ```immich\nUUID\n``` as images
-  plugin.registerMarkdownCodeBlockProcessor('immich', async (source, el) => {
+  plugin.registerMarkdownCodeBlockProcessor('immich', (source, el) => {
     const lines = source.trim().split('\n')
     let assetId = ''
     let width = 0
@@ -160,7 +160,7 @@ async function fetchOrGetCached (plugin: ImmichPicker, assetId: string): Promise
 
   const fetchPromise = (async () => {
     const url = plugin.immichApi.getThumbnailUrl(assetId)
-    const apiKey = await plugin.getApiKey()
+    const apiKey = plugin.getApiKey()
     const response = await requestUrl({
       url,
       headers: { 'x-api-key': apiKey }
