@@ -5,6 +5,12 @@ export interface ImmichAsset {
   id: string;
   originalFileName: string;
   fileCreatedAt: string;
+  /**
+   * Wall clock time where the photo was taken, sent as an ISO string with a
+   * `Z` suffix that must not be converted: `2025-09-09T14:23:00.000Z` means
+   * 14:23 local to the camera, whatever its offset was.
+   */
+  localDateTime?: string;
   type: string;
   description?: string;
 }
@@ -40,6 +46,27 @@ export interface ImmichSharedLink {
   key: string;
   type: string;
   assets: ImmichAsset[];
+}
+
+/** Widest real UTC offsets, used to bracket a calendar day in absolute time. */
+const MAX_UTC_OFFSET_HOURS = 14
+const MIN_UTC_OFFSET_HOURS = -12
+
+/** Immich caps `size` at 1000; smaller pages keep a single day responsive. */
+const DATE_SEARCH_PAGE_SIZE = 250
+/** Stop runaway paging on absurdly busy days rather than hammering the server. */
+const DATE_SEARCH_MAX_PAGES = 20
+
+/**
+ * The calendar day an asset was taken on, in the camera's time zone. Immich
+ * labels `localDateTime` with a `Z` it does not mean, so it is read as UTC to
+ * get the wall clock back. Servers old enough to omit it fall back to the
+ * absolute time read in the vault's time zone.
+ */
+function localDay (asset: ImmichAsset): string {
+  return asset.localDateTime
+    ? window.moment.utc(asset.localDateTime).format('YYYY-MM-DD')
+    : window.moment(asset.fileCreatedAt).format('YYYY-MM-DD')
 }
 
 export class ImmichApi {
@@ -133,6 +160,34 @@ export class ImmichApi {
     return merged
   }
 
+  /**
+   * Page a search to exhaustion. Each visibility is paged on its own so a
+   * short page ends only that half, instead of the merged length making both
+   * look finished.
+   */
+  private async searchAllPages (
+    endpoint: string,
+    body: Record<string, unknown>,
+    errorLabel: string
+  ): Promise<ImmichAsset[]> {
+    const visibilities = this.plugin.settings.includeArchived
+      ? ['timeline', 'archive']
+      : ['timeline']
+
+    const pageSize = typeof body.size === 'number' ? body.size : DATE_SEARCH_PAGE_SIZE
+    const pages = await Promise.all(visibilities.map(async visibility => {
+      const items: ImmichAsset[] = []
+      for (let page = 1; page <= DATE_SEARCH_MAX_PAGES; page++) {
+        const batch = await this.search(endpoint, { ...body, visibility, page }, errorLabel)
+        items.push(...batch)
+        if (batch.length < pageSize) break
+      }
+      return items
+    }))
+
+    return pages.flat()
+  }
+
   async getRecentPhotos (count: number, page = 1): Promise<ImmichAsset[]> {
     return this.searchVisible(
       '/api/search/metadata',
@@ -159,24 +214,42 @@ export class ImmichApi {
     )
   }
 
-  async getPhotosByDate (date: moment.Moment, count: number, page = 1): Promise<ImmichAsset[]> {
-    // Get photos taken on the specified date (from start to end of day)
-    const takenAfter = date.clone().startOf('day').toISOString()
-    const takenBefore = date.clone().endOf('day').toISOString()
+  /**
+   * Every photo taken on the given calendar day, in the camera's own time zone.
+   *
+   * `takenAfter`/`takenBefore` compare against `fileCreatedAt`, the absolute
+   * instant, so day boundaries built from the vault's time zone cut the wrong
+   * window for photos taken elsewhere: a New Zealand vault asking for a day in
+   * Spain used to get 14:00 to 14:00 (#10). The server has no filter on the
+   * asset's own local date, so instead we ask for every instant that could
+   * belong to that day anywhere on earth (UTC-12 to UTC+14) and keep the
+   * assets whose `localDateTime` lands on it.
+   */
+  async getPhotosByDate (date: moment.Moment): Promise<ImmichAsset[]> {
+    const targetDay = date.format('YYYY-MM-DD')
+    const dayStartUtc = window.moment.utc(targetDay, 'YYYY-MM-DD')
+    const dayEndUtc = dayStartUtc.clone().add(1, 'day').subtract(1, 'millisecond')
 
-    return this.searchVisible(
+    // An instant is `local time - offset`, so the widest bracket subtracts the
+    // largest offset from the day's start and the smallest from its end.
+    const takenAfter = dayStartUtc.clone().subtract(MAX_UTC_OFFSET_HOURS, 'hours').toISOString()
+    const takenBefore = dayEndUtc.clone().subtract(MIN_UTC_OFFSET_HOURS, 'hours').toISOString()
+
+    const candidates = await this.searchAllPages(
       '/api/search/metadata',
       {
-        page,
-        size: count,
+        size: DATE_SEARCH_PAGE_SIZE,
         type: 'IMAGE',
         takenAfter,
         takenBefore,
         order: 'asc'
       },
-      'Failed to fetch photos by date',
-      'asc'
+      'Failed to fetch photos by date'
     )
+
+    return candidates
+      .filter(asset => localDay(asset) === targetDay)
+      .sort((a, b) => new Date(a.fileCreatedAt).getTime() - new Date(b.fileCreatedAt).getTime())
   }
 
   getThumbnailUrl (assetId: string): string {
