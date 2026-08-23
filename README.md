@@ -173,7 +173,6 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 | Get date from | Where to extract date for filtering (Disabled/Note title/Frontmatter) | Disabled |
 | Date format | MomentJS format for parsing dates | `YYYY-MM-DD` |
 | Frontmatter key | Property name containing the date | `date` |
-| Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
 | Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |
 | Output templates | Named Markdown templates for inserted images | One, `[![{{display_width}}]({{local_thumbnail_link}})]({{immich_url}})` |

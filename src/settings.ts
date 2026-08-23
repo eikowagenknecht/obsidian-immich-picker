@@ -28,6 +28,12 @@ export interface FolderTemplateRule {
 export interface LegacySettings {
   /** Pre-1.2: the single global template, now the first entry in the list. */
   thumbnailMarkdown?: string;
+  /**
+   * Up to 1.2.1: a size for the saved thumbnail that nothing ever read.
+   * Thumbnails come from Immich at its own preview size.
+   */
+  thumbnailWidth?: number;
+  thumbnailHeight?: number;
 }
 
 export interface ImmichPickerSettings {
@@ -40,8 +46,6 @@ export interface ImmichPickerSettings {
   remoteFormat: RemoteFormatOption;
   displayWidth: number;
   renderInEditMode: boolean;
-  thumbnailWidth: number;
-  thumbnailHeight: number;
   filename: string;
   outputTemplates: OutputTemplate[];
   defaultTemplateId: string;
@@ -76,7 +80,7 @@ const LEGACY_DEFAULT_TEMPLATES = [
 
 const DEFAULT_TEMPLATE_ID = 'default'
 
-export const DEFAULT_SETTINGS: ImmichPickerSettings = {
+const DEFAULT_SETTINGS: ImmichPickerSettings = {
   serverUrl: '',
   apiKey: '',
   recentPhotosCount: 9,
@@ -86,8 +90,6 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   remoteFormat: 'server-url',
   displayWidth: 0,
   renderInEditMode: true,
-  thumbnailWidth: 400,
-  thumbnailHeight: 280,
   filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
   outputTemplates: [{ id: DEFAULT_TEMPLATE_ID, name: 'Default', template: DEFAULT_TEMPLATE_MARKDOWN }],
   defaultTemplateId: DEFAULT_TEMPLATE_ID,
@@ -166,7 +168,7 @@ export function normalizeTemplateSettings (settings: ImmichPickerSettings, legac
 }
 
 /** An id that no existing template is using. */
-export function newTemplateId (existing: OutputTemplate[]): string {
+function newTemplateId (existing: OutputTemplate[]): string {
   const taken = new Set(existing.map(t => t.id))
   let id = 'tpl-' + Date.now().toString(36)
   for (let n = 1; taken.has(id); n++) id = `tpl-${Date.now().toString(36)}-${n}`
@@ -437,26 +439,6 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         type: 'group',
         heading: 'Thumbnails',
         items: [
-          {
-            name: 'Thumbnail width',
-            desc: 'Maximum width of the locally-saved thumbnail image in pixels',
-            control: {
-              type: 'number',
-              key: 'thumbnailWidth',
-              min: 1,
-              defaultValue: DEFAULT_SETTINGS.thumbnailWidth
-            }
-          },
-          {
-            name: 'Thumbnail height',
-            desc: 'Maximum height of the locally-saved thumbnail image in pixels',
-            control: {
-              type: 'number',
-              key: 'thumbnailHeight',
-              min: 1,
-              defaultValue: DEFAULT_SETTINGS.thumbnailHeight
-            }
-          },
           {
             // Rendered imperatively to keep the live filename preview.
             name: 'Image filename format',

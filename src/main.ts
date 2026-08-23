@@ -14,8 +14,6 @@ import { handlebarParse } from './handlebars'
 import { registerImmichPostProcessor, clearImmichBlobCache } from './postProcessor'
 import { ConversionModal } from './conversionModal'
 
-// No placeholder needed — remote mode uses code block syntax rendered by code block processor
-
 /** One Immich image reference found in note content, located by source range. */
 export interface ImmichReference {
   /** Offset of the first character of the reference. */
@@ -294,10 +292,6 @@ export default class ImmichPicker extends Plugin {
   // --- Markdown generation ---
 
   /**
-   * Computes display dimensions using "fit long edge" logic.
-   * Returns `|WxH` if dimensions known, `|W` if only max size set, or empty string.
-   */
-  /**
    * Returns the width alt text for image sizing.
    * Uses width-only format (e.g. |400) so Obsidian preserves aspect ratio.
    * If original dimensions are known and the image is already smaller than
@@ -526,11 +520,19 @@ export default class ImmichPicker extends Plugin {
     const stored = await this.loadData() as (Partial<ImmichPickerSettings> & LegacySettings) | null
     this.settings = Object.assign(cloneDefaultSettings(), stored)
     normalizeTemplateSettings(this.settings, stored ?? undefined)
-    // The pre-1.2 single template now lives in the list; stop writing it back.
-    delete (this.settings as LegacySettings).thumbnailMarkdown
-    // The display_width rewrite has to be recorded, or a template edited back
-    // to the old default would be rewritten again on the next load.
-    if (!stored?.displayWidthTemplateMigrated) await this.saveSettings()
+    // Fields nothing reads any more; stop writing them back.
+    const legacyFields = this.settings as LegacySettings
+    delete legacyFields.thumbnailMarkdown
+    delete legacyFields.thumbnailWidth
+    delete legacyFields.thumbnailHeight
+
+    // Write back once when the stored file needed fixing up, so the dead keys
+    // go away and the display_width rewrite is recorded — without that record
+    // a template edited back to the old default would be rewritten again on
+    // the next load.
+    const wasStale = stored != null && (!stored.displayWidthTemplateMigrated ||
+      'thumbnailMarkdown' in stored || 'thumbnailWidth' in stored || 'thumbnailHeight' in stored)
+    if (wasStale) await this.saveSettings()
   }
 
   async saveSettings () {
