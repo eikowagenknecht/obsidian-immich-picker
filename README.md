@@ -82,6 +82,9 @@ If your note has a date in its title (e.g., `2024-01-15.md`) or frontmatter, the
 3. A banner appears: "📅 Show photos from January 15, 2024?"
 4. Click the banner to see all photos taken on that day
 
+Photos are matched on the date the camera recorded, so a day spent in another
+time zone still returns exactly that day's photos.
+
 This is especially useful for daily notes or journal entries.
 
 ### Paste Immich URL

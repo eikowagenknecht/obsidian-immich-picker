@@ -35,6 +35,8 @@ export class ImmichPickerModal extends Modal {
   currentQuery = ''
   currentAlbum: ImmichAlbum | null = null
   currentAlbumAssets: ImmichAsset[] = []
+  // A day is fetched whole (see ImmichApi.getPhotosByDate) and paged from here.
+  currentDateAssets: ImmichAsset[] = []
   hasMoreResults = true
   noteDate: moment.Moment | null = null
   selectedWidth = 0
@@ -298,10 +300,21 @@ export class ImmichPickerModal extends Modal {
     }
   }
 
-  async displayPhotos (assets: ImmichAsset[], mode: 'recent' | 'search' | 'albums' | 'album' | 'date', query?: string, append = false) {
-    // Check if we got fewer results than requested (no more pages)
-    if (assets.length < this.plugin.settings.recentPhotosCount) {
-      this.hasMoreResults = false
+  async displayPhotos (
+    assets: ImmichAsset[],
+    mode: 'recent' | 'search' | 'albums' | 'album' | 'date',
+    query?: string,
+    append = false,
+    hasMore?: boolean
+  ) {
+    if (hasMore === undefined) {
+      // Check if we got fewer results than requested (no more pages)
+      if (assets.length < this.plugin.settings.recentPhotosCount) {
+        this.hasMoreResults = false
+      }
+    } else {
+      // Client-side paging knows the exact total, so it says so outright.
+      this.hasMoreResults = hasMore
     }
 
     if (!append) {
@@ -352,18 +365,18 @@ export class ImmichPickerModal extends Modal {
 
     try {
       let assets: ImmichAsset[]
+      let hasMore: boolean | undefined
       if (this.currentMode === 'search') {
         assets = await this.plugin.immichApi.searchPhotos(
           this.currentQuery,
           this.plugin.settings.recentPhotosCount,
           this.currentPage
         )
-      } else if (this.currentMode === 'date' && this.noteDate) {
-        assets = await this.plugin.immichApi.getPhotosByDate(
-          this.noteDate,
-          this.plugin.settings.recentPhotosCount,
-          this.currentPage
-        )
+      } else if (this.currentMode === 'date') {
+        const pageSize = this.plugin.settings.recentPhotosCount
+        const start = (this.currentPage - 1) * pageSize
+        assets = this.currentDateAssets.slice(start, start + pageSize)
+        hasMore = this.currentDateAssets.length > start + pageSize
       } else {
         assets = await this.plugin.immichApi.getRecentPhotos(
           this.plugin.settings.recentPhotosCount,
@@ -371,7 +384,7 @@ export class ImmichPickerModal extends Modal {
         )
       }
 
-      await this.displayPhotos(assets, this.currentMode, this.currentQuery, true)
+      await this.displayPhotos(assets, this.currentMode, this.currentQuery, true, hasMore)
       this.loadMoreEl.textContent = `Load next ${this.plugin.settings.recentPhotosCount}`
       this.gridContainerEl.scrollTo({ top: this.gridContainerEl.scrollHeight, behavior: 'smooth' })
     } catch (error) {
@@ -400,12 +413,15 @@ export class ImmichPickerModal extends Modal {
     this.showLoading()
 
     try {
-      const assets = await this.plugin.immichApi.getPhotosByDate(
-        this.noteDate,
-        this.plugin.settings.recentPhotosCount,
-        1
+      const pageSize = this.plugin.settings.recentPhotosCount
+      this.currentDateAssets = await this.plugin.immichApi.getPhotosByDate(this.noteDate)
+      await this.displayPhotos(
+        this.currentDateAssets.slice(0, pageSize),
+        'date',
+        dateStr,
+        false,
+        this.currentDateAssets.length > pageSize
       )
-      await this.displayPhotos(assets, 'date', dateStr, false)
     } catch (error) {
       console.error('Failed to load photos by date:', error)
       this.setTitle(`Immich photos - error loading ${dateStr}`)
