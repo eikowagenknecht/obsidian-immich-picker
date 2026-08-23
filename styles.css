@@ -45,6 +45,13 @@
   border-color: var(--interactive-accent);
 }
 
+/* Shown when the selected template drops the size choice */
+.immich-picker-size-warning {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-warning);
+  margin-left: 4px;
+}
+
 /* Output template selector */
 .immich-picker-template-select {
   font-size: var(--font-ui-small);

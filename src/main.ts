@@ -528,6 +528,9 @@ export default class ImmichPicker extends Plugin {
     normalizeTemplateSettings(this.settings, stored ?? undefined)
     // The pre-1.2 single template now lives in the list; stop writing it back.
     delete (this.settings as LegacySettings).thumbnailMarkdown
+    // The display_width rewrite has to be recorded, or a template edited back
+    // to the old default would be rewritten again on the next load.
+    if (!stored?.displayWidthTemplateMigrated) await this.saveSettings()
   }
 
   async saveSettings () {

@@ -39,6 +39,7 @@ export class ImmichPickerModal extends Modal {
   noteDate: moment.Moment | null = null
   selectedWidth = 0
   selectedTemplateId: string
+  sizeWarningEl: HTMLElement
 
   constructor (app: App, plugin: ImmichPicker, editor: Editor, view: MarkdownView) {
     super(app)
@@ -126,6 +127,13 @@ export class ImmichPickerModal extends Modal {
         bubble.addClass('is-active')
       })
     }
+    // Nothing here can resize an image the template inserts at full size, so
+    // say so rather than letting the bubbles look like they took effect.
+    this.sizeWarningEl = sizeRow.createSpan({
+      text: 'template has no {{display_width}}',
+      cls: 'immich-picker-size-warning'
+    })
+    this.updateSizeWarning()
 
     // Template selector. Remote mode writes a fixed format, and with a single
     // template there is nothing to choose.
@@ -143,6 +151,7 @@ export class ImmichPickerModal extends Modal {
       }
       select.addEventListener('change', () => {
         this.selectedTemplateId = select.value
+        this.updateSizeWarning()
       })
     }
 
@@ -642,6 +651,17 @@ export class ImmichPickerModal extends Modal {
     }
 
     this.close()
+  }
+
+  /**
+   * Remote mode builds its own alt text, so the size always applies there.
+   * The other modes go through a template, where a missing `display_width`
+   * means the choice is silently dropped.
+   */
+  private updateSizeWarning () {
+    const applies = this.plugin.settings.imageMode === 'remote' ||
+      this.plugin.templateFor(this.selectedTemplateId).includes('display_width')
+    this.sizeWarningEl.toggle(!applies)
   }
 
   async insertImageIntoEditor (event: MouseEvent) {

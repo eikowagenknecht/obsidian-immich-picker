@@ -53,10 +53,26 @@ export interface ImmichPickerSettings {
   getDateFrom: GetDateFromOption;
   getDateFromFrontMatterKey: string;
   getDateFromFormat: string;
+  /**
+   * Set once the 1.2.1-and-earlier default template has been rewritten to
+   * include `display_width`. Not shown in the settings UI; it only stops the
+   * rewrite from coming back for someone who takes the width out on purpose.
+   */
+  displayWidthTemplateMigrated: boolean;
 }
 
 /** The template every install starts with, and the fallback if none is left. */
-export const DEFAULT_TEMPLATE_MARKDOWN = '[![]({{local_thumbnail_link}})]({{immich_url}}) '
+export const DEFAULT_TEMPLATE_MARKDOWN = '[![{{display_width}}]({{local_thumbnail_link}})]({{immich_url}}) '
+
+/**
+ * Defaults shipped up to 1.2.1. They left `display_width` out of the alt
+ * text, so the picker's size choice and the display width setting had nowhere
+ * to land and every inserted image came out at full size. Templates still
+ * holding one of these verbatim are migrated to the current default on load.
+ */
+const LEGACY_DEFAULT_TEMPLATES = [
+  '[![]({{local_thumbnail_link}})]({{immich_url}}) '
+]
 
 const DEFAULT_TEMPLATE_ID = 'default'
 
@@ -82,7 +98,8 @@ export const DEFAULT_SETTINGS: ImmichPickerSettings = {
   convertPastedLink: true,
   getDateFrom: 'none',
   getDateFromFrontMatterKey: 'date',
-  getDateFromFormat: 'YYYY-MM-DD'
+  getDateFromFormat: 'YYYY-MM-DD',
+  displayWidthTemplateMigrated: false
 }
 
 /**
@@ -107,6 +124,10 @@ export function cloneDefaultSettings (): ImmichPickerSettings {
  * Repointing rather than dropping broken references keeps every later reader
  * free of "what if that id is gone" checks, without anything vanishing from
  * the settings UI unannounced.
+ *
+ * Up to 1.2.1 the default template had no `display_width`, which left the
+ * picker's size selector with nothing to write into; an untouched one is
+ * replaced by the current default, once.
  */
 export function normalizeTemplateSettings (settings: ImmichPickerSettings, legacy?: LegacySettings): void {
   if (!Array.isArray(settings.outputTemplates) || settings.outputTemplates.length === 0) {
@@ -121,6 +142,19 @@ export function normalizeTemplateSettings (settings: ImmichPickerSettings, legac
   const ids = new Set(settings.outputTemplates.map(t => t.id))
   if (!ids.has(settings.defaultTemplateId)) {
     settings.defaultTemplateId = settings.outputTemplates[0].id
+  }
+
+  // Anyone who never edited the default is still on a template without
+  // `display_width`, where the size selector silently does nothing. Only an
+  // untouched legacy default is rewritten, so customised templates are left
+  // exactly as the user wrote them.
+  if (!settings.displayWidthTemplateMigrated) {
+    for (const template of settings.outputTemplates) {
+      if (LEGACY_DEFAULT_TEMPLATES.includes(template.template)) {
+        template.template = DEFAULT_TEMPLATE_MARKDOWN
+      }
+    }
+    settings.displayWidthTemplateMigrated = true
   }
 
   if (!Array.isArray(settings.folderTemplateRules)) {
@@ -595,7 +629,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
             ul.createEl('li', { text: 'original_filename - original filename from Immich' })
             ul.createEl('li', { text: 'taken_date - date the photo was taken' })
             ul.createEl('li', { text: 'description - photo description from Immich' })
-            ul.createEl('li', { text: 'display_width - image width from settings (e.g. |400)' })
+            ul.createEl('li', { text: 'display_width - width suffix for the alt text (e.g. |400), from the display width setting or the picker. A template without it always inserts full-size images.' })
             frag.createEl('br')
             frag.appendText('Include immich_url or immich_thumbnail_url if you want "Convert Immich images" to find these images later. ')
             frag.appendText('A trailing ')

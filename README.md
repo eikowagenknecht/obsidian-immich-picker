@@ -116,12 +116,16 @@ recognise a plain `![](...)`:
 
 ```markdown
 # Default — one click back to the original
-[![]({{local_thumbnail_link}})]({{immich_url}})
+[![{{display_width}}]({{local_thumbnail_link}})]({{immich_url}})
 
 # Publish-safe — a plain embed, backlink parked in a comment
-![]({{local_thumbnail_link}})
+![{{display_width}}]({{local_thumbnail_link}})
 <!--immich: {{immich_url}}-->
 ```
+
+`{{display_width}}` is what carries the size — it becomes `|400` for a 400px
+image, and nothing when "Original size" is picked. A template without it always
+inserts full-size images, whatever the picker's size selector says.
 
 Once there is more than one template, two things appear:
 
@@ -172,7 +176,7 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 | Thumbnail width/height | Max dimensions for saved thumbnails | 400x280 |
 | Location | Where to save thumbnails | Same folder as note |
 | Filename format | MomentJS format for saved files | `immich_2024-01-01--23-59-59.jpg` |
-| Output templates | Named Markdown templates for inserted images | One, `[![]({{local_thumbnail_link}})]({{immich_url}})` |
+| Output templates | Named Markdown templates for inserted images | One, `[![{{display_width}}]({{local_thumbnail_link}})]({{immich_url}})` |
 | Default template | Template for notes no folder rule matches | The first one |
 | Folder rules | Folders that get a template of their own | None |
 | Convert pasted Immich links | Auto-convert pasted URLs to thumbnails | Enabled |
@@ -186,7 +190,7 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 - `{{original_filename}}` - Original filename from Immich
 - `{{taken_date}}` - Date the photo was taken
 - `{{description}}` - Photo description from Immich
-- `{{display_width}}` - Width suffix for the alt text, e.g. `|400`
+- `{{display_width}}` - Width suffix for the alt text, e.g. `|400`, set by the display width setting and the picker's size selector
 
 ## Development
 
