@@ -23,7 +23,7 @@ Adapted from [obsidian-google-photos](https://github.com/alangrainger/obsidian-g
 
 ## Requirements
 
-- A self-hosted [Immich](https://immich.app/) server
+- A self-hosted [Immich](https://immich.app/) server, version 2.x or 3.x. The plugin reads the server version and uses the matching API.
 - An Immich API key with the following permissions:
   - `asset.read` - for searching photos
   - `asset.view` - for downloading thumbnails

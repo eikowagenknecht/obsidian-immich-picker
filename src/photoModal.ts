@@ -31,6 +31,8 @@ export class ImmichPickerModal extends Modal {
   backButton: HTMLElement
 
   currentPage = 1
+  // Token from ImmichApi for the next recent or search page.
+  nextPage: string | null = null
   currentMode: 'recent' | 'search' | 'albums' | 'album' | 'date' = 'recent'
   currentQuery = ''
   currentAlbum: ImmichAlbum | null = null
@@ -276,8 +278,9 @@ export class ImmichPickerModal extends Modal {
     this.setTitle('Immich photos - loading...')
     this.showLoading()
     try {
-      const assets = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount, 1)
-      await this.displayPhotos(assets, 'recent', undefined, false)
+      const page = await this.plugin.immichApi.getRecentPhotos(this.plugin.settings.recentPhotosCount)
+      this.nextPage = page.next
+      await this.displayPhotos(page.assets, 'recent', undefined, false, page.next !== null)
     } catch (error) {
       console.error('Failed to load photos:', error)
       this.setTitle('Immich photos - error')
@@ -300,8 +303,9 @@ export class ImmichPickerModal extends Modal {
     this.setTitle('Immich photos - searching...')
     this.showLoading()
     try {
-      const assets = await this.plugin.immichApi.searchPhotos(query, this.plugin.settings.recentPhotosCount, 1)
-      await this.displayPhotos(assets, 'search', query, false)
+      const page = await this.plugin.immichApi.searchPhotos(query, this.plugin.settings.recentPhotosCount)
+      this.nextPage = page.next
+      await this.displayPhotos(page.assets, 'search', query, false, page.next !== null)
     } catch (error) {
       console.error('Failed to search photos:', error)
       this.setTitle('Immich photos - search error')
@@ -312,19 +316,11 @@ export class ImmichPickerModal extends Modal {
   async displayPhotos (
     assets: ImmichAsset[],
     mode: 'recent' | 'search' | 'albums' | 'album' | 'date',
-    query?: string,
-    append = false,
-    hasMore?: boolean
+    query: string | undefined,
+    append: boolean,
+    hasMore: boolean
   ) {
-    if (hasMore === undefined) {
-      // Check if we got fewer results than requested (no more pages)
-      if (assets.length < this.plugin.settings.recentPhotosCount) {
-        this.hasMoreResults = false
-      }
-    } else {
-      // Client-side paging knows the exact total, so it says so outright.
-      this.hasMoreResults = hasMore
-    }
+    this.hasMoreResults = hasMore
 
     if (!append) {
       // Clear existing grid for new search/load
@@ -373,24 +369,21 @@ export class ImmichPickerModal extends Modal {
     this.loadMoreEl.textContent = 'Loading...'
 
     try {
+      const pageSize = this.plugin.settings.recentPhotosCount
       let assets: ImmichAsset[]
-      let hasMore: boolean | undefined
-      if (this.currentMode === 'search') {
-        assets = await this.plugin.immichApi.searchPhotos(
-          this.currentQuery,
-          this.plugin.settings.recentPhotosCount,
-          this.currentPage
-        )
-      } else if (this.currentMode === 'date') {
-        const pageSize = this.plugin.settings.recentPhotosCount
+      let hasMore: boolean
+      if (this.currentMode === 'date') {
         const start = (this.currentPage - 1) * pageSize
         assets = this.currentDateAssets.slice(start, start + pageSize)
         hasMore = this.currentDateAssets.length > start + pageSize
       } else {
-        assets = await this.plugin.immichApi.getRecentPhotos(
-          this.plugin.settings.recentPhotosCount,
-          this.currentPage
-        )
+        const next = this.nextPage ?? undefined
+        const page = this.currentMode === 'search'
+          ? await this.plugin.immichApi.searchPhotos(this.currentQuery, pageSize, next)
+          : await this.plugin.immichApi.getRecentPhotos(pageSize, next)
+        assets = page.assets
+        hasMore = page.next !== null
+        this.nextPage = page.next
       }
 
       await this.displayPhotos(assets, this.currentMode, this.currentQuery, true, hasMore)
@@ -525,7 +518,7 @@ export class ImmichPickerModal extends Modal {
     this.showLoading()
 
     try {
-      const assets = await this.plugin.immichApi.getAlbumAssets(album.id)
+      const assets = await this.plugin.immichApi.getAlbumAssets(album)
       this.currentAlbumAssets = assets
 
       // Show first N photos
