@@ -44,6 +44,7 @@ export interface ImmichPickerSettings {
   includeArchived: boolean;
   imageMode: ImageModeOption;
   remoteFormat: RemoteFormatOption;
+  remoteLinkUrl: string;
   displayWidth: number;
   renderInEditMode: boolean;
   filename: string;
@@ -88,6 +89,7 @@ const DEFAULT_SETTINGS: ImmichPickerSettings = {
   includeArchived: false,
   imageMode: 'local',
   remoteFormat: 'server-url',
+  remoteLinkUrl: '',
   displayWidth: 0,
   renderInEditMode: true,
   filename: '[immich_]YYYY-MM-DD--HH-mm-ss[.jpg]',
@@ -335,6 +337,17 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
                 'code-block': 'Code block'
               },
               defaultValue: DEFAULT_SETTINGS.remoteFormat
+            }
+          },
+          {
+            name: 'Link URL',
+            desc: 'Optional. Server links point to this URL instead of Immich\'s thumbnail. {{original_filename}} (URL-encoded) and {{immich_asset_id}} are replaced.',
+            visible: () => this.plugin.settings.imageMode === 'remote',
+            control: {
+              type: 'text',
+              key: 'remoteLinkUrl',
+              placeholder: 'https://photos.example.com/{{original_filename}}',
+              defaultValue: DEFAULT_SETTINGS.remoteLinkUrl
             }
           },
           {
@@ -838,6 +851,7 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
       case 'locationSubfolder':
         return value.trim().replace(/^[\\/]+/, '').replace(/[\\/]+$/, '')
       case 'apiKey':
+      case 'remoteLinkUrl':
       case 'filename':
       case 'getDateFromFrontMatterKey':
       case 'getDateFromFormat':

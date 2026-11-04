@@ -142,7 +142,9 @@ export default class ImmichPicker extends Plugin {
           const templateId = this.templateIdForPath(noteFile.path)
 
           if (this.settings.imageMode === 'remote') {
-            linkText = this.generateRemoteMarkdown({ assetId })
+            // Only the link URL setting needs the name, which costs a lookup.
+            const details = this.settings.remoteLinkUrl ? await this.immichApi.getAssetDetails(assetId) : undefined
+            linkText = this.generateRemoteMarkdown({ assetId, originalFilename: details?.originalFileName })
           } else if (this.settings.imageMode === 'shared') {
             linkText = await this.generateSharedMarkdown({
               assetId,
@@ -376,6 +378,8 @@ export default class ImmichPicker extends Plugin {
    */
   generateRemoteMarkdown (params: {
     assetId: string,
+    /** Fills {{original_filename}} in the link URL setting. */
+    originalFilename?: string,
     origWidth?: number,
     origHeight?: number,
     /** Overrides the display width setting for this one call. */
@@ -391,7 +395,17 @@ export default class ImmichPicker extends Plugin {
       const widthLine = widthAlt ? `\nwidth=${widthAlt.slice(1)}` : ''
       return '\n```immich\n' + params.assetId + widthLine + '\n```\n'
     }
-    return `![${widthAlt}](${this.immichApi.getThumbnailUrl(params.assetId)}) `
+
+    // A link URL that names the photo falls back to Immich's thumbnail when
+    // the name is unknown, rather than writing a link that leads nowhere.
+    const linkUrl = this.settings.remoteLinkUrl
+    const url = linkUrl && (params.originalFilename || !/\{\{\s*original_filename\s*\}\}/i.test(linkUrl))
+      ? handlebarParse(linkUrl, {
+        original_filename: encodeURIComponent(params.originalFilename ?? ''),
+        immich_asset_id: params.assetId
+      })
+      : this.immichApi.getThumbnailUrl(params.assetId)
+    return `![${widthAlt}](${url}) `
   }
 
   async generateSharedMarkdown (params: {
