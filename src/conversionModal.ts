@@ -284,10 +284,11 @@ export class ConversionModal extends Modal {
           // template, same display width, and for local images the asset id
           // stays in the note so it can be converted again later.
           // Details cost a round trip each, and are only needed to fill
-          // template variables or to decide whether a photo is already small
-          // enough to skip resizing.
+          // template variables or the link URL setting, or to decide whether
+          // a photo is already small enough to skip resizing.
           const needsDetails = this.targetFormat === 'local' ||
             this.targetFormat === 'shared' ||
+            (this.targetFormat === 'server-url' && this.plugin.settings.remoteLinkUrl !== '') ||
             this.plugin.settings.displayWidth > 0
           const details: ImmichAssetDetails = needsDetails
             ? await this.plugin.immichApi.getAssetDetails(assetId)
@@ -333,6 +334,7 @@ export class ConversionModal extends Modal {
             case 'code-block':
               replacement = this.plugin.generateRemoteMarkdown({
                 assetId,
+                originalFilename: details.originalFileName,
                 origWidth,
                 origHeight,
                 format: this.targetFormat
