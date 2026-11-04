@@ -108,6 +108,13 @@ The **Image mode** setting controls what the plugin writes into your note:
 | Remote | A markdown link to your Immich server | Nothing saved to your vault, but the plugin has to be installed to see the image |
 | Shared | An Immich shared link | The URL works anywhere, and is readable by anyone who has it |
 
+In remote mode, **Link URL** can point server links somewhere other than Immich's
+thumbnail endpoint, for example a small server or proxy of your own that finds
+photos by file name: `https://photos.example.com/{{original_filename}}`. The note
+then names each photo by its file name rather than by an Immich asset ID, which
+changes if the Immich database is ever rebuilt. Obsidian loads that URL itself,
+so it has to work without the API key.
+
 ### Use Different Markdown for Different Notes
 
 In local and shared mode, the plugin fills a named template to build the text it
@@ -168,6 +175,7 @@ The [Commander](https://github.com/phibr0/obsidian-commander) plugin can also ad
 | API Key | Your Immich API key | - |
 | Image mode | How images are stored (Local/Remote/Shared) | Local |
 | Remote image format | Server link or code block, for remote mode | Server link |
+| Link URL | Optional URL for server links instead of Immich's thumbnail; `{{original_filename}}` (URL-encoded) and `{{immich_asset_id}}` are filled in | Empty |
 | Render in edit mode | Show remote images inline while editing | Enabled |
 | Display width | Default width for inserted images | Original size |
 | Photos per page | Photos loaded at a time (recent, search, pagination) | 9 |

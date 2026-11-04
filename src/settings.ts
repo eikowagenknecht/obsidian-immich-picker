@@ -746,7 +746,9 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
     return {
       name: 'Inserted Markdown',
       desc: createFragment(frag => {
-        frag.appendText('Remote mode uses a fixed format (not customizable):')
+        frag.appendText(isCodeBlock
+          ? 'Remote mode uses a fixed format (not customizable):'
+          : 'Server links use this format, unless a Link URL is set:')
         frag.createEl('br')
         frag.createEl('code', {
           text: isCodeBlock ? '```immich <asset id> ```' : '![](<server>/api/assets/<asset id>/thumbnail)'
@@ -754,7 +756,8 @@ export class ImmichPickerSettingTab extends PluginSettingTab {
         frag.createEl('br')
         frag.appendText(isCodeBlock
           ? 'The code block processor fetches the image and renders it at read time.'
-          : 'The plugin re-fetches this URL with your API key when rendering, since Obsidian cannot send the key itself.')
+          : 'The plugin re-fetches this URL with your API key when rendering, since Obsidian cannot send the key itself. ' +
+            'A Link URL is loaded by Obsidian directly, so it must work without the key.')
       }),
       render: () => { /* description only */ }
     }
